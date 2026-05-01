@@ -1,0 +1,21 @@
+{
+  "name": "eTeach KPI Tracker",
+  "short_name": "KPI Tracker",
+  "description": "Installable KPI tracker for eTeach activity, meetings, notes, and tasks.",
+  "id": "./",
+  "start_url": ".",
+  "scope": ".",
+  "display": "standalone",
+  "background_color": "#25002f",
+  "theme_color": "#25002f",
+  "orientation": "portrait-primary",
+  "categories": ["business", "productivity"],
+  "icons": [
+    {
+      "src": "favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
