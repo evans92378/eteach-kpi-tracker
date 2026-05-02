@@ -252,6 +252,28 @@
     flex: 0 0 auto;
   }
 
+  .kpi-box {
+    background: #ffffff;
+    border: 2px solid #eadff0;
+    border-radius: var(--brand-radius-panel);
+    color: #220436;
+  }
+
+  .kpi-box.kpi-neutral {
+    background: #ffffff;
+    border-color: #eadff0;
+  }
+
+  .kpi-box.kpi-green {
+    background: #bde8c8;
+    border-color: #8fcea1;
+  }
+
+  .kpi-box.kpi-gold {
+    background: #fff4cf;
+    border-color: #ffd36d;
+  }
+
   .task-card {
     border: 1px solid var(--brand-border);
     border-radius: var(--brand-radius-panel);
@@ -260,9 +282,10 @@
   }
 
   .task-normal { background: #fff; }
-  .task-low { background: #eefaf1; border-color: #bde8c8; }
-  .task-high { background: #fff7df; border-color: #ffd36d; }
-  .task-urgent { background: #fff0f0; border-color: #ff9e9e; }
+  .task-low { background: #bde8c8; border-color: #8fcea1; }
+  .task-medium,
+  .task-high { background: #fff4cf; border-color: #ffd36d; }
+  .task-urgent { background: #ff9e9e; border-color: #e67676; }
 
   .priority-choice {
     border: 2px solid transparent;
@@ -296,6 +319,12 @@
     color: #166534;
   }
 
+  .status-lost {
+    background: #fee2e2;
+    border-color: #fca5a5;
+    color: #991b1b;
+  }
+
   .status-pending {
     background: #fff7ed;
     border-color: #fdba74;
@@ -306,6 +335,28 @@
     background: var(--brand-soft);
     border-color: var(--brand-border);
     color: var(--brand-muted);
+  }
+
+  .sales-summary-bar {
+    display: flex;
+    gap: 12px;
+    margin: 12px 0;
+    align-items: center;
+  }
+
+  .sales-summary-pill {
+    flex: 1;
+    min-height: 42px;
+    padding: 10px 16px;
+    border-radius: 14px;
+    background: #fff4cf;
+    border: 2px solid #ffd36d;
+    color: #220436;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    font-weight: 700;
   }
 
   .tab-icon {
