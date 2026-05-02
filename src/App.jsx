@@ -1359,9 +1359,15 @@ function friendlyAuthError(error) {
   return error?.message || "Please try again.";
 }
 
-function fullNameFromProfile(profile, fallback = "") {
-  const name = [profile?.firstName, profile?.lastName].filter(Boolean).join(" ").trim();
-  return name || fallback;
+function firstNameFromValue(value, fallback = "Dylan") {
+  const text = String(value || "").trim();
+  if (!text) return fallback;
+  if (text.includes("@")) return text.split("@")[0] || fallback;
+  return text.split(/\s+/)[0] || fallback;
+}
+
+function firstNameFromProfile(profile, fallback = "") {
+  return firstNameFromValue(profile?.firstName || fallback);
 }
 
 function themeStyle(theme) {
@@ -1556,15 +1562,15 @@ export default function OfflineKpiTracker() {
       const snap = await getDoc(trackerDoc(user.uid));
       const data = snap.exists() ? snap.data() : {};
       const profile = data.profile || {};
-      const fallbackName = fullNameFromProfile(profile, user.displayName || user.email || "Dylan");
+      const fallbackName = firstNameFromProfile(profile, user.displayName || user.email || "Dylan");
       const saved = snap.exists()
-        ? normalizeAppState({ ...(data.state || data), profileName: (data.state && data.state.profileName) || fallbackName })
+        ? normalizeAppState({ ...(data.state || data), profileName: firstNameFromValue((data.state && data.state.profileName) || fallbackName) })
         : normalizeAppState({ profileName: fallbackName, savedAt: new Date().toISOString() });
       writeStoredData(saved);
       applySavedState(saved);
       if (!snap.exists()) {
         await setDoc(trackerDoc(user.uid), {
-          profile: { firstName: profile.firstName || user.displayName || "", lastName: profile.lastName || "", jobTitle: profile.jobTitle || "", email: user.email || "" },
+          profile: { firstName: profile.firstName || firstNameFromValue(user.displayName || user.email || ""), lastName: profile.lastName || "", jobTitle: profile.jobTitle || "", email: user.email || "" },
           state: saved,
           updatedAt: serverTimestamp(),
         }, { merge: true });
@@ -1741,7 +1747,7 @@ export default function OfflineKpiTracker() {
     try {
       const result = await createUserWithEmailAndPassword(auth, email.trim(), password);
       const profile = { firstName: firstName.trim(), lastName: lastName.trim(), jobTitle: jobTitle.trim(), email: email.trim() };
-      const displayName = fullNameFromProfile(profile, email.trim());
+      const displayName = firstNameFromProfile(profile, email.trim());
       await updateProfile(result.user, { displayName });
       const saved = normalizeAppState({ profileName: displayName, savedAt: new Date().toISOString() });
       await setDoc(trackerDoc(result.user.uid), { profile, state: saved, updatedAt: serverTimestamp() }, { merge: true });
@@ -1908,10 +1914,11 @@ function AuthGate({ tx, signInEmail, createEmailAccount, resetPassword, signInGo
 }
 
 function Header({ tx, language, profileName, firebaseUser, cloudStatus, signInGoogle, signOutGoogle, period, view, setView, selectedDate, setSelectedDate, calendarOpen, setCalendarOpen, actionsOpen, setActionsOpen, headerOpen, setHeaderOpen, editTotals, setEditTotals, jump, saveNow, saveAs, exportReport, printReport, importBackup, backup, reset, lastSaved, openSettings }) {
+  const displayName = firstNameFromValue(profileName || firebaseUser?.displayName || firebaseUser?.email);
   if (!headerOpen) {
-    return <header className="panel shadow-card mb-3 p-2"><div className="flex items-center justify-between gap-2"><button onClick={() => setHeaderOpen(true)} className="btn soft min-w-0 flex-1 truncate text-left"><Fa icon={faChevronDown} /> <span>{greetingFor(language, profileName)}</span></button>{firebaseUser ? <button className="btn soft" onClick={signOutGoogle}><Fa icon={faRightFromBracket} /></button> : <button className="btn primary" onClick={signInGoogle}><Fa icon={faRightToBracket} /></button>}<button className="btn soft" title={tx.settings} onClick={openSettings}><Fa icon={faGear} /> <span className="hidden sm:inline">{tx.settings}</span></button></div></header>;
+    return <header className="panel shadow-card mb-3 p-2"><div className="flex items-center justify-between gap-2"><button onClick={() => setHeaderOpen(true)} className="btn soft min-w-0 flex-1 truncate text-left"><Fa icon={faChevronDown} /> <span>{greetingFor(language, displayName)}</span></button>{firebaseUser ? <button className="btn soft" onClick={signOutGoogle}><Fa icon={faRightFromBracket} /></button> : <button className="btn primary" onClick={signInGoogle}><Fa icon={faRightToBracket} /></button>}<button className="btn soft" title={tx.settings} onClick={openSettings}><Fa icon={faGear} /> <span className="hidden sm:inline">{tx.settings}</span></button></div></header>;
   }
-  return <header className="panel shadow-card mb-3 p-3"><div className="flex items-center justify-between gap-2"><div className="min-w-0"><p className="text-[10px] font-black uppercase muted">{tx.app}</p><button onClick={() => setCalendarOpen(!calendarOpen)} className="brand truncate text-left text-lg brand-text sm:text-2xl"><Fa icon={faCalendarDays} className="mr-2 text-base" />{period.label}</button><div className="mt-1 text-[10px] font-black uppercase muted">{firebaseUser ? `${tx.signedInAs} ${firebaseUser.displayName || firebaseUser.email}` : tx.signInRequired}{cloudStatus ? ` - ${cloudStatus}` : ""}</div></div><div className="flex items-center gap-1"><span className="rounded-full bg-green-100 px-2 py-1 text-[10px] font-black text-green-700">{lastSaved}</span>{firebaseUser ? <button className="btn soft" onClick={signOutGoogle}><Fa icon={faRightFromBracket} /> <span className="hidden sm:inline">{tx.signOut}</span></button> : <button className="btn primary" onClick={signInGoogle}><Fa icon={faRightToBracket} /> <span className="hidden sm:inline">{tx.signInGoogle}</span></button>}<button className="btn soft" title={tx.collapseTop} onClick={() => setHeaderOpen(false)}><Fa icon={faChevronUp} /></button><button className="btn soft" title={tx.settings} onClick={openSettings}><Fa icon={faGear} /> <span className="hidden sm:inline">{tx.settings}</span></button></div></div><div className="mt-2 grid grid-cols-[38px_1fr_38px] gap-1"><button className="btn soft" onClick={() => jump(-1)}><Fa icon={faChevronLeft} /></button><div className="grid grid-cols-4 gap-1 rounded-2xl brand-soft p-1">{[["day", tx.day], ["week", tx.week], ["month", tx.month], ["ytd", tx.ytd]].map(([key, label]) => <button key={key} className={"btn " + (view === key ? "primary" : "")} onClick={() => setView(key)}>{label}</button>)}</div><button className="btn soft" onClick={() => jump(1)}><Fa icon={faChevronRight} /></button></div>{calendarOpen && <input className="input mt-2" type="date" value={selectedDate} onChange={(e) => setSelectedDate(e.target.value)} />}<button className="btn soft mt-2 w-full" onClick={() => setActionsOpen(!actionsOpen)}><Fa icon={actionsOpen ? faChevronUp : faChevronDown} /> <span>{actionsOpen ? tx.hideActions : tx.showActions}</span></button>{actionsOpen && <div className="mt-2 grid grid-cols-2 gap-1 sm:flex sm:flex-wrap"><button className="btn soft" onClick={() => setEditTotals(!editTotals)}><Fa icon={faPenToSquare} /> <span>{editTotals ? tx.done : tx.editTotals}</span></button><button className="btn primary" onClick={saveNow}><Fa icon={faFloppyDisk} /> <span>{tx.save}</span></button><button className="btn soft" onClick={saveAs}><Fa icon={faFileArrowDown} /> <span>{tx.saveAs}</span></button><button className="btn primary" onClick={exportReport}><Fa icon={faFileExport} /> <span>{tx.exportExcel}</span></button><button className="btn primary" onClick={printReport}><Fa icon={faFilePdf} /> <span>{tx.pdfPrint}</span></button><button className="btn soft" onClick={backup}><Fa icon={faFileArrowDown} /> <span>{tx.backup}</span></button><label className="btn soft text-center"><Fa icon={faFileArrowUp} /> <span>{tx.import}</span><input className="hidden" type="file" accept="application/json" onChange={importBackup} /></label><button className="btn soft text-red-700" onClick={reset}><Fa icon={faRotateLeft} /> <span>{tx.reset}</span></button></div>}</header>;
+  return <header className="panel shadow-card mb-3 p-3"><div className="flex items-center justify-between gap-2"><div className="min-w-0"><p className="text-[10px] font-black uppercase muted">{tx.app}</p><button onClick={() => setCalendarOpen(!calendarOpen)} className="brand truncate text-left text-lg brand-text sm:text-2xl"><Fa icon={faCalendarDays} className="mr-2 text-base" />{period.label}</button><div className="mt-1 text-[10px] font-black uppercase muted">{firebaseUser ? `${tx.signedInAs} ${displayName}` : tx.signInRequired}{cloudStatus ? ` - ${cloudStatus}` : ""}</div></div><div className="flex items-center gap-1"><span className="rounded-full bg-green-100 px-2 py-1 text-[10px] font-black text-green-700">{lastSaved}</span>{firebaseUser ? <button className="btn soft" onClick={signOutGoogle}><Fa icon={faRightFromBracket} /> <span className="hidden sm:inline">{tx.signOut}</span></button> : <button className="btn primary" onClick={signInGoogle}><Fa icon={faRightToBracket} /> <span className="hidden sm:inline">{tx.signInGoogle}</span></button>}<button className="btn soft" title={tx.collapseTop} onClick={() => setHeaderOpen(false)}><Fa icon={faChevronUp} /></button><button className="btn soft" title={tx.settings} onClick={openSettings}><Fa icon={faGear} /> <span className="hidden sm:inline">{tx.settings}</span></button></div></div><div className="mt-2 grid grid-cols-[38px_1fr_38px] gap-1"><button className="btn soft" onClick={() => jump(-1)}><Fa icon={faChevronLeft} /></button><div className="grid grid-cols-4 gap-1 rounded-2xl brand-soft p-1">{[["day", tx.day], ["week", tx.week], ["month", tx.month], ["ytd", tx.ytd]].map(([key, label]) => <button key={key} className={"btn " + (view === key ? "primary" : "")} onClick={() => setView(key)}>{label}</button>)}</div><button className="btn soft" onClick={() => jump(1)}><Fa icon={faChevronRight} /></button></div>{calendarOpen && <input className="input mt-2" type="date" value={selectedDate} onChange={(e) => setSelectedDate(e.target.value)} />}<button className="btn soft mt-2 w-full" onClick={() => setActionsOpen(!actionsOpen)}><Fa icon={actionsOpen ? faChevronUp : faChevronDown} /> <span>{actionsOpen ? tx.hideActions : tx.showActions}</span></button>{actionsOpen && <div className="mt-2 grid grid-cols-2 gap-1 sm:flex sm:flex-wrap"><button className="btn soft" onClick={() => setEditTotals(!editTotals)}><Fa icon={faPenToSquare} /> <span>{editTotals ? tx.done : tx.editTotals}</span></button><button className="btn primary" onClick={saveNow}><Fa icon={faFloppyDisk} /> <span>{tx.save}</span></button><button className="btn soft" onClick={saveAs}><Fa icon={faFileArrowDown} /> <span>{tx.saveAs}</span></button><button className="btn primary" onClick={exportReport}><Fa icon={faFileExport} /> <span>{tx.exportExcel}</span></button><button className="btn primary" onClick={printReport}><Fa icon={faFilePdf} /> <span>{tx.pdfPrint}</span></button><button className="btn soft" onClick={backup}><Fa icon={faFileArrowDown} /> <span>{tx.backup}</span></button><label className="btn soft text-center"><Fa icon={faFileArrowUp} /> <span>{tx.import}</span><input className="hidden" type="file" accept="application/json" onChange={importBackup} /></label><button className="btn soft text-red-700" onClick={reset}><Fa icon={faRotateLeft} /> <span>{tx.reset}</span></button></div>}</header>;
 }
 function RangeControl({ label, value, min, max, step = 1, suffix = "", onChange }) {
   return <label className="grid gap-1 text-xs font-black uppercase muted"><span className="flex justify-between"><span>{label}</span><span>{value}{suffix}</span></span><input type="range" min={min} max={max} step={step} value={value} onChange={(e) => onChange(Number(e.target.value))} /></label>;
