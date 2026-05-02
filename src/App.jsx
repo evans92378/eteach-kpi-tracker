@@ -334,6 +334,7 @@ const copy = {
     signedInAs: "Signed in as",
     offlineSaveBlocked: "You must be online to save. Use Backup for an offline copy.",
     signInRequired: "Sign in with Google before saving to Firebase.",
+    googleSignInFailed: "Google sign-in failed:",
     cloudLoadFailed: "Could not load Firebase save. Local offline data is still available.",
     cloudSaveFailed: "Could not save to Firebase. Use Backup for an offline copy.",
     importWarning: "Importing will replace current tracker data. Continue?",
@@ -508,6 +509,7 @@ const copy = {
     signedInAs: "Wedi mewngofnodi fel",
     offlineSaveBlocked: "Rhaid bod ar-lein i gadw. Defnyddiwch Gopi wrth gefn ar gyfer copi all-lein.",
     signInRequired: "Mewngofnodwch gyda Google cyn cadw i Firebase.",
+    googleSignInFailed: "Methodd mewngofnodi Google:",
     cloudLoadFailed: "Methu llwytho cadw Firebase. Mae data all-lein lleol dal ar gael.",
     cloudSaveFailed: "Methu cadw i Firebase. Defnyddiwch Gopi wrth gefn ar gyfer copi all-lein.",
     importWarning: "Bydd mewnforio yn disodli data presennol y traciwr. Parhau?",
@@ -1626,8 +1628,11 @@ export default function OfflineKpiTracker() {
     if (!browserOnline()) return alert(tx.offlineSaveBlocked);
     try {
       await signInWithPopup(auth, googleProvider);
-    } catch {
-      alert(tx.signInRequired);
+    } catch (error) {
+      const message = error?.code === "auth/unauthorized-domain"
+        ? "Add evans92378.github.io to Firebase Auth > Settings > Authorized domains."
+        : error?.message || tx.signInRequired;
+      alert(`${tx.googleSignInFailed} ${message}`);
     }
   };
 
