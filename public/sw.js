@@ -1,4 +1,4 @@
-const CACHE_NAME = "eteach-kpi-tracker-v3";
+const CACHE_NAME = "eteach-kpi-tracker-v4";
 const appUrl = (path) => new URL(path, self.registration.scope).toString();
 const APP_SHELL = [appUrl("./"), appUrl("./index.html"), appUrl("./manifest.webmanifest"), appUrl("./favicon.svg")];
 const IS_LOCAL_DEV = ["localhost", "127.0.0.1", "::1"].includes(self.location.hostname);

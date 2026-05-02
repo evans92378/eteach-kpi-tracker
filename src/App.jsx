@@ -1625,14 +1625,20 @@ export default function OfflineKpiTracker() {
   };
 
   const signInGoogle = async () => {
-    if (!browserOnline()) return alert(tx.offlineSaveBlocked);
+    if (!browserOnline()) {
+      alert(tx.offlineSaveBlocked);
+      return null;
+    }
     try {
-      await signInWithPopup(auth, googleProvider);
+      const result = await signInWithPopup(auth, googleProvider);
+      setFirebaseUser(result.user);
+      return result.user;
     } catch (error) {
       const message = error?.code === "auth/unauthorized-domain"
         ? "Add evans92378.github.io to Firebase Auth > Settings > Authorized domains."
         : error?.message || tx.signInRequired;
       alert(`${tx.googleSignInFailed} ${message}`);
+      return null;
     }
   };
 
@@ -1645,9 +1651,10 @@ export default function OfflineKpiTracker() {
     const saved = writeStoredData(currentData());
     setLastSaved(formatSaveTime(saved.savedAt));
     if (!browserOnline()) return alert(tx.offlineSaveBlocked);
-    if (!firebaseUser) return alert(tx.signInRequired);
+    const user = firebaseUser || await signInGoogle();
+    if (!user) return;
     try {
-      await setDoc(trackerDoc(firebaseUser.uid), { state: saved, updatedAt: serverTimestamp() }, { merge: true });
+      await setDoc(trackerDoc(user.uid), { state: saved, updatedAt: serverTimestamp() }, { merge: true });
       setCloudStatus(tx.savedCloud);
       alert(tx.savedCloud);
     } catch {
