@@ -138,14 +138,14 @@ const FONT_OPTIONS = [
 const DEFAULT_THEME = {
   bodyFont: "Poppins, 'Segoe UI', Arial, sans-serif",
   headerFont: "'Arial Rounded MT Bold', Poppins, 'Segoe UI', Arial, sans-serif",
-  bodyWeight: 400,
-  headerWeight: 900,
-  subheadingWeight: 900,
-  bodySize: 16,
+  bodyWeight: 500,
+  headerWeight: 600,
+  subheadingWeight: 700,
+  bodySize: 15,
   subheadingSize: 12,
   headerScale: 1,
-  panelRadius: 24,
-  controlRadius: 16,
+  panelRadius: 14,
+  controlRadius: 10,
   customFonts: [],
   newFontName: "",
 };
@@ -197,6 +197,8 @@ const copy = {
     dropdownOptions: "Dropdown options",
     dropdownHelp: "Edit future dropdown choices. Saved historic records keep the wording they already have.",
     addOption: "Add option",
+    englishLabel: "English",
+    cymraegLabel: "Cymraeg",
     resetOptions: "Reset dropdowns",
     productive: "Productive call",
     createsMeeting: "Creates meeting",
@@ -391,6 +393,8 @@ const copy = {
     dropdownOptions: "Opsiynau cwymplen",
     dropdownHelp: "Golygwch ddewisiadau cwymplen y dyfodol. Mae cofnodion hanesyddol yn cadw eu geiriad presennol.",
     addOption: "Ychwanegu opsiwn",
+    englishLabel: "English",
+    cymraegLabel: "Cymraeg",
     resetOptions: "Ailosod cwymplenni",
     productive: "Galwad gynhyrchiol",
     createsMeeting: "Creu cyfarfod",
@@ -1037,11 +1041,13 @@ function normalizeOption(option, fallback, setKey, index) {
   const defaultOption = fallback || {};
   const label = String(source.label || defaultOption.label || "").trim();
   if (!label) return null;
+  const labelCy = String(source.labelCy || defaultOption.labelCy || "").trim();
   return {
     ...defaultOption,
     ...source,
     id: String(source.id || defaultOption.id || `${setKey}-${slug(label)}-${index}`),
     label,
+    labelCy,
   };
 }
 
@@ -1563,13 +1569,13 @@ export default function OfflineKpiTracker() {
           updatedAt: serverTimestamp(),
         }, { merge: true });
       }
-      setCloudStatus(tx.cloudLoaded);
+      setCloudStatus(copy.en.cloudLoaded);
     } catch {
-      setCloudStatus(tx.cloudLoadFailed);
+      setCloudStatus(copy.en.cloudLoadFailed);
     } finally {
       setAuthReady(true);
     }
-  }), [applySavedState, tx.cloudLoadFailed, tx.cloudLoaded]);
+  }), [applySavedState]);
 
   const required = (values) => {
     if (values.some((value) => !String(value || "").trim())) {
@@ -1812,7 +1818,7 @@ export default function OfflineKpiTracker() {
   };
 
   if (!authReady) {
-    return <div className="app-shell min-h-screen p-4" style={themeStyle(theme)}><div className="app-bg fixed inset-0 -z-10" /><div className="auth-shell panel shadow-card"><p className="brand text-center">{tx.authLoading}</p></div></div>;
+    return <div className="app-shell auth-page min-h-screen" style={themeStyle(theme)}><div className="app-bg fixed inset-0 -z-10" /><div className="auth-shell panel shadow-card"><p className="brand text-center">{tx.authLoading}</p></div></div>;
   }
 
   if (!firebaseUser) {
@@ -1864,11 +1870,11 @@ function AuthGate({ tx, signInEmail, createEmailAccount, resetPassword, signInGo
   };
 
   return (
-    <div className="app-shell min-h-screen p-4">
+    <div className="app-shell auth-page min-h-screen">
       <div className="app-bg fixed inset-0 -z-10" />
       <main className="auth-shell panel shadow-card">
         <img className="auth-logo" src={`${import.meta.env.BASE_URL}eteach-ios.png`} alt="" />
-        <p className="text-[11px] font-black uppercase brand-text">eTeach Smart Dashboard</p>
+        <p className="auth-kicker text-[11px] font-black uppercase">eTeach Smart Dashboard</p>
         <h1 className="brand brand-text">{tx.welcomeTitle}</h1>
         <p className="muted">{tx.welcomeBody}</p>
         <form className="mt-4 grid gap-2" onSubmit={submit}>
@@ -1913,6 +1919,7 @@ function RangeControl({ label, value, min, max, step = 1, suffix = "", onChange 
 
 function OptionSetEditor({ tx, setKey, options, setOptionSets }) {
   const [newLabel, setNewLabel] = useState("");
+  const [newLabelCy, setNewLabelCy] = useState("");
   const updateOption = (id, patch) => setOptionSets((current) => ({
     ...current,
     [setKey]: current[setKey].map((option) => option.id === id ? { ...option, ...patch } : option),
@@ -1926,12 +1933,13 @@ function OptionSetEditor({ tx, setKey, options, setOptionSets }) {
     if (!label) return;
     setOptionSets((current) => ({
       ...current,
-      [setKey]: [...current[setKey], { id: `${setKey}-${slug(label)}-${uid()}`, label, productive: false, createsMeeting: false }],
+      [setKey]: [...current[setKey], { id: `${setKey}-${slug(label)}-${uid()}`, label, labelCy: newLabelCy.trim(), productive: false, createsMeeting: false }],
     }));
     setNewLabel("");
+    setNewLabelCy("");
   };
 
-  return <section className="rounded-3xl bg-white p-3"><h3 className="brand brand-text">{OPTION_SET_LABELS[setKey]}</h3><div className="mt-2 grid gap-2">{options.map((option) => <div className="rounded-2xl brand-soft p-2" key={option.id}><div className="grid grid-cols-[1fr_auto] gap-2"><input className="input" value={option.label} onChange={(e) => updateOption(option.id, { label: e.target.value })} /><button className="btn soft text-red-700" onClick={() => deleteOption(option.id)}><Fa icon={faTrashCan} /></button></div>{setKey === "callOutcomes" && <div className="mt-2 grid gap-2 text-xs font-black uppercase muted sm:grid-cols-2"><label><input type="checkbox" checked={Boolean(option.productive)} onChange={(e) => updateOption(option.id, { productive: e.target.checked })} /> {tx.productive}</label><label><input type="checkbox" checked={Boolean(option.createsMeeting)} onChange={(e) => updateOption(option.id, { createsMeeting: e.target.checked })} /> {tx.createsMeeting}</label></div>}</div>)}</div><div className="mt-2 grid grid-cols-[1fr_auto] gap-2"><input className="input" placeholder={tx.addOption} value={newLabel} onChange={(e) => setNewLabel(e.target.value)} /><button className="btn primary" onClick={addOption}><Fa icon={faCirclePlus} /></button></div></section>;
+  return <section className="rounded-3xl bg-white p-3"><h3 className="brand brand-text">{OPTION_SET_LABELS[setKey]}</h3><div className="mt-2 grid gap-2">{options.map((option) => <div className="rounded-2xl brand-soft p-2" key={option.id}><div className="grid grid-cols-[1fr_auto] gap-2"><div className="grid gap-2 sm:grid-cols-2"><label className="grid gap-1 text-[10px] font-black uppercase muted">{tx.englishLabel}<input className="input" value={option.label} onChange={(e) => updateOption(option.id, { label: e.target.value })} /></label><label className="grid gap-1 text-[10px] font-black uppercase muted">{tx.cymraegLabel}<input className="input" value={option.labelCy || ""} onChange={(e) => updateOption(option.id, { labelCy: e.target.value })} /></label></div><button className="btn soft text-red-700" onClick={() => deleteOption(option.id)}><Fa icon={faTrashCan} /></button></div>{setKey === "callOutcomes" && <div className="mt-2 grid gap-2 text-xs font-black uppercase muted sm:grid-cols-2"><label><input type="checkbox" checked={Boolean(option.productive)} onChange={(e) => updateOption(option.id, { productive: e.target.checked })} /> {tx.productive}</label><label><input type="checkbox" checked={Boolean(option.createsMeeting)} onChange={(e) => updateOption(option.id, { createsMeeting: e.target.checked })} /> {tx.createsMeeting}</label></div>}</div>)}</div><div className="mt-2 grid grid-cols-[1fr_auto] gap-2"><div className="grid gap-2 sm:grid-cols-2"><input className="input" placeholder={`${tx.addOption} - ${tx.englishLabel}`} value={newLabel} onChange={(e) => setNewLabel(e.target.value)} /><input className="input" placeholder={`${tx.addOption} - ${tx.cymraegLabel}`} value={newLabelCy} onChange={(e) => setNewLabelCy(e.target.value)} /></div><button className="btn primary" onClick={addOption}><Fa icon={faCirclePlus} /></button></div></section>;
 }
 
 function Settings({ tx, language, setLanguage, profileName, setProfileName, theme, setTheme, optionSets, setOptionSets, close }) {
