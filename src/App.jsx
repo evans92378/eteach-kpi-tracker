@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { onAuthStateChanged, signInWithPopup, signOut } from "firebase/auth";
+import { createUserWithEmailAndPassword, onAuthStateChanged, sendPasswordResetEmail, signInWithEmailAndPassword, signInWithPopup, signOut, updateProfile } from "firebase/auth";
 import { getDoc, serverTimestamp, setDoc } from "firebase/firestore";
 import { auth, googleProvider, trackerDoc } from "./firebase";
 import {
@@ -170,7 +170,23 @@ const DEFAULT_FOCUS_SCHEDULE = [
 
 const copy = {
   en: {
-    app: "Offline KPI Tracker",
+    app: "eTeach Smart Dashboard",
+    welcomeTitle: "Welcome to Smart Dashboard",
+    welcomeBody: "Sign in to open your private dashboard.",
+    email: "Email",
+    password: "Password",
+    firstName: "First name",
+    lastName: "Last name",
+    signIn: "Sign In",
+    createAccount: "Create an account",
+    alreadyHaveAccount: "Already have an account?",
+    forgotPassword: "Forgot password?",
+    resetPassword: "Send password reset",
+    passwordResetSent: "Password reset email sent.",
+    authLoading: "Checking sign in...",
+    accountCreated: "Account created.",
+    googleCreateAccount: "Create an account with Google",
+    backToSignIn: "Back to sign in",
     day: "Day",
     week: "Week",
     month: "Month",
@@ -207,7 +223,7 @@ const copy = {
     resetDesign: "Reset design",
     previewTitle: "Preview heading",
     previewBody: "This preview updates as you change fonts, weights, sizes and rounded corners.",
-    save: "Save",
+    save: "Save to cloud",
     saveAs: "Save As",
     copyTasks: "Copy Daily Summary",
     copyDailySummary: "Copy Daily Summary",
@@ -220,7 +236,7 @@ const copy = {
     editSchedule: "Edit schedule",
     addFocusBlock: "Add focus block",
     noFocusNow: "No focus block right now",
-    taskUpdateTitle: "eTeach KPI Task Update",
+    taskUpdateTitle: "eTeach Smart Dashboard Task Update",
     outstandingTasks: "Outstanding tasks",
     completedTasks: "Completed tasks",
     completedClosed: "Completed / closed in tracker",
@@ -327,16 +343,19 @@ const copy = {
     required: "Please complete all required fields before submitting.",
     requiredTask: "Please complete all required task fields before adding it to this note.",
     savedLocal: "Saved locally on this device.",
-    savedCloud: "Saved to Firebase.",
+    savedCloud: "Saved to cloud.",
     cloudLoaded: "Cloud save loaded.",
     signInGoogle: "Sign in with Google",
     signOut: "Sign out",
     signedInAs: "Signed in as",
     offlineSaveBlocked: "You must be online to save. Use Backup for an offline copy.",
-    signInRequired: "Sign in with Google before saving to Firebase.",
+    signInRequired: "Sign in before saving to cloud.",
     googleSignInFailed: "Google sign-in failed:",
-    cloudLoadFailed: "Could not load Firebase save. Local offline data is still available.",
-    cloudSaveFailed: "Could not save to Firebase. Use Backup for an offline copy.",
+    cloudLoadFailed: "Could not load cloud save. Local offline data is still available.",
+    cloudSaveFailed: "Could not save to cloud. Use Backup for an offline copy.",
+    signInFailed: "Sign in failed:",
+    createAccountFailed: "Could not create account:",
+    resetPasswordFailed: "Could not send password reset:",
     importWarning: "Importing will replace current tracker data. Continue?",
     resetWarning: "Reset all data?",
     popBlocked: "Pop-up blocked. Allow pop-ups to print.",
@@ -345,7 +364,23 @@ const copy = {
     dismiss: "Dismiss",
   },
   cy: {
-    app: "Traciwr KPI All-lein",
+    app: "eTeach Smart Dashboard",
+    welcomeTitle: "Croeso i Smart Dashboard",
+    welcomeBody: "Mewngofnodwch i agor eich dangosfwrdd preifat.",
+    email: "E-bost",
+    password: "Cyfrinair",
+    firstName: "Enw cyntaf",
+    lastName: "Cyfenw",
+    signIn: "Mewngofnodi",
+    createAccount: "Creu cyfrif",
+    alreadyHaveAccount: "Oes gennych gyfrif yn barod?",
+    forgotPassword: "Wedi anghofio cyfrinair?",
+    resetPassword: "Anfon ailosod cyfrinair",
+    passwordResetSent: "Anfonwyd e-bost ailosod cyfrinair.",
+    authLoading: "Gwirio mewngofnodi...",
+    accountCreated: "Crëwyd y cyfrif.",
+    googleCreateAccount: "Creu cyfrif gyda Google",
+    backToSignIn: "Yn ôl i fewngofnodi",
     day: "Diwrnod",
     week: "Wythnos",
     month: "Mis",
@@ -382,7 +417,7 @@ const copy = {
     resetDesign: "Ailosod dyluniad",
     previewTitle: "Pennawd rhagolwg",
     previewBody: "Mae'r rhagolwg hwn yn newid wrth i chi addasu ffontiau, pwysau, meintiau a chorneli.",
-    save: "Cadw",
+    save: "Cadw i'r cwmwl",
     saveAs: "Cadw fel",
     copyTasks: "Copio Crynodeb Dyddiol",
     copyDailySummary: "Copio Crynodeb Dyddiol",
@@ -395,7 +430,7 @@ const copy = {
     editSchedule: "Golygu amserlen",
     addFocusBlock: "Ychwanegu bloc ffocws",
     noFocusNow: "Dim bloc ffocws ar hyn o bryd",
-    taskUpdateTitle: "Diweddariad Tasgau KPI eTeach",
+    taskUpdateTitle: "Diweddariad Tasgau eTeach Smart Dashboard",
     outstandingTasks: "Tasgau heb eu cwblhau",
     completedTasks: "Tasgau wedi'u cwblhau",
     completedClosed: "Wedi'i gwblhau / cau yn y traciwr",
@@ -502,16 +537,19 @@ const copy = {
     required: "Cwblhewch bob maes gofynnol cyn cyflwyno.",
     requiredTask: "Cwblhewch bob maes tasg gofynnol cyn ei ychwanegu at y nodyn hwn.",
     savedLocal: "Wedi cadw'n lleol ar y ddyfais hon.",
-    savedCloud: "Wedi cadw i Firebase.",
+    savedCloud: "Wedi cadw i'r cwmwl.",
     cloudLoaded: "Cadw cwmwl wedi'i lwytho.",
     signInGoogle: "Mewngofnodi gyda Google",
     signOut: "Allgofnodi",
     signedInAs: "Wedi mewngofnodi fel",
     offlineSaveBlocked: "Rhaid bod ar-lein i gadw. Defnyddiwch Gopi wrth gefn ar gyfer copi all-lein.",
-    signInRequired: "Mewngofnodwch gyda Google cyn cadw i Firebase.",
+    signInRequired: "Mewngofnodwch cyn cadw i'r cwmwl.",
     googleSignInFailed: "Methodd mewngofnodi Google:",
-    cloudLoadFailed: "Methu llwytho cadw Firebase. Mae data all-lein lleol dal ar gael.",
-    cloudSaveFailed: "Methu cadw i Firebase. Defnyddiwch Gopi wrth gefn ar gyfer copi all-lein.",
+    cloudLoadFailed: "Methu llwytho cadw cwmwl. Mae data all-lein lleol dal ar gael.",
+    cloudSaveFailed: "Methu cadw i'r cwmwl. Defnyddiwch Gopi wrth gefn ar gyfer copi all-lein.",
+    signInFailed: "Methodd mewngofnodi:",
+    createAccountFailed: "Methu creu cyfrif:",
+    resetPasswordFailed: "Methu anfon ailosod cyfrinair:",
     importWarning: "Bydd mewnforio yn disodli data presennol y traciwr. Parhau?",
     resetWarning: "Ailosod yr holl ddata?",
     popBlocked: "Rhwystrwyd y ffenestr. Caniatewch pop-ups i argraffu.",
@@ -1304,6 +1342,22 @@ function browserOnline() {
   return typeof navigator === "undefined" ? true : navigator.onLine;
 }
 
+function friendlyAuthError(error) {
+  const code = error?.code || "";
+  if (code === "auth/unauthorized-domain") return "This app domain is not enabled for sign-in yet.";
+  if (code === "auth/invalid-credential") return "Email or password is not correct.";
+  if (code === "auth/email-already-in-use") return "An account already exists for that email.";
+  if (code === "auth/weak-password") return "Password must be at least 6 characters.";
+  if (code === "auth/operation-not-allowed") return "This sign-in method is not enabled yet.";
+  if (code === "auth/popup-closed-by-user") return "The sign-in window was closed before finishing.";
+  return error?.message || "Please try again.";
+}
+
+function fullNameFromProfile(profile, fallback = "") {
+  const name = [profile?.firstName, profile?.lastName].filter(Boolean).join(" ").trim();
+  return name || fallback;
+}
+
 function themeStyle(theme) {
   return {
     "--brand-font": theme.bodyFont,
@@ -1330,7 +1384,7 @@ export default function OfflineKpiTracker() {
   const tx = copy[language];
   const [profileName, setProfileName] = useState(String(initialData.profileName || "Dylan"));
   const [selectedDate, setSelectedDate] = useState(initialData.selectedDate || today);
-  const [view, setView] = useState(asChoice(initialData.view, ["week", "month", "ytd"], "week"));
+  const [view, setView] = useState(asChoice(initialData.view, ["day", "week", "month", "ytd"], "week"));
   const [tab, setTab] = useState(asChoice(initialData.tab, ["kpis", "opportunities", "tasks", "notes", "levelUps"], "kpis"));
   const [actionsOpen, setActionsOpen] = useState(false);
   const [headerOpen, setHeaderOpen] = useState(true);
@@ -1338,6 +1392,7 @@ export default function OfflineKpiTracker() {
   const [editTotals, setEditTotals] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [firebaseUser, setFirebaseUser] = useState(null);
+  const [authReady, setAuthReady] = useState(false);
   const [cloudStatus, setCloudStatus] = useState("");
   const [theme, setTheme] = useState(() => cleanTheme(initialData.theme));
   const [optionSets, setOptionSets] = useState(() => cleanOptionSets(initialData.optionSets));
@@ -1482,16 +1537,37 @@ export default function OfflineKpiTracker() {
 
   useEffect(() => onAuthStateChanged(auth, async (user) => {
     setFirebaseUser(user);
-    if (!user || !browserOnline()) return;
+    setCloudStatus("");
+    if (!user) {
+      setAuthReady(true);
+      return;
+    }
+    if (!browserOnline()) {
+      setAuthReady(true);
+      return;
+    }
     try {
       const snap = await getDoc(trackerDoc(user.uid));
-      if (!snap.exists()) return;
-      const saved = normalizeAppState(snap.data().state || snap.data());
+      const data = snap.exists() ? snap.data() : {};
+      const profile = data.profile || {};
+      const fallbackName = fullNameFromProfile(profile, user.displayName || user.email || "Dylan");
+      const saved = snap.exists()
+        ? normalizeAppState({ ...(data.state || data), profileName: (data.state && data.state.profileName) || fallbackName })
+        : normalizeAppState({ profileName: fallbackName, savedAt: new Date().toISOString() });
       writeStoredData(saved);
       applySavedState(saved);
+      if (!snap.exists()) {
+        await setDoc(trackerDoc(user.uid), {
+          profile: { firstName: profile.firstName || user.displayName || "", lastName: profile.lastName || "", jobTitle: profile.jobTitle || "", email: user.email || "" },
+          state: saved,
+          updatedAt: serverTimestamp(),
+        }, { merge: true });
+      }
       setCloudStatus(tx.cloudLoaded);
     } catch {
       setCloudStatus(tx.cloudLoadFailed);
+    } finally {
+      setAuthReady(true);
     }
   }), [applySavedState, tx.cloudLoadFailed, tx.cloudLoaded]);
 
@@ -1634,10 +1710,7 @@ export default function OfflineKpiTracker() {
       setFirebaseUser(result.user);
       return result.user;
     } catch (error) {
-      const message = error?.code === "auth/unauthorized-domain"
-        ? "Add evans92378.github.io to Firebase Auth > Settings > Authorized domains."
-        : error?.message || tx.signInRequired;
-      alert(`${tx.googleSignInFailed} ${message}`);
+      alert(`${tx.googleSignInFailed} ${friendlyAuthError(error)}`);
       return null;
     }
   };
@@ -1645,6 +1718,45 @@ export default function OfflineKpiTracker() {
   const signOutGoogle = async () => {
     await signOut(auth);
     setCloudStatus("");
+  };
+
+  const signInEmail = async ({ email, password }) => {
+    if (!browserOnline()) return alert(tx.offlineSaveBlocked);
+    try {
+      await signInWithEmailAndPassword(auth, email.trim(), password);
+    } catch (error) {
+      alert(`${tx.signInFailed} ${friendlyAuthError(error)}`);
+    }
+  };
+
+  const createEmailAccount = async ({ firstName, lastName, jobTitle, email, password }) => {
+    if (!browserOnline()) return alert(tx.offlineSaveBlocked);
+    if (!required([firstName, lastName, jobTitle, email, password])) return;
+    try {
+      const result = await createUserWithEmailAndPassword(auth, email.trim(), password);
+      const profile = { firstName: firstName.trim(), lastName: lastName.trim(), jobTitle: jobTitle.trim(), email: email.trim() };
+      const displayName = fullNameFromProfile(profile, email.trim());
+      await updateProfile(result.user, { displayName });
+      const saved = normalizeAppState({ profileName: displayName, savedAt: new Date().toISOString() });
+      await setDoc(trackerDoc(result.user.uid), { profile, state: saved, updatedAt: serverTimestamp() }, { merge: true });
+      writeStoredData(saved);
+      applySavedState(saved);
+      setFirebaseUser(result.user);
+      setCloudStatus(tx.accountCreated);
+    } catch (error) {
+      alert(`${tx.createAccountFailed} ${friendlyAuthError(error)}`);
+    }
+  };
+
+  const resetPassword = async (email) => {
+    if (!browserOnline()) return alert(tx.offlineSaveBlocked);
+    if (!String(email || "").trim()) return alert(tx.required);
+    try {
+      await sendPasswordResetEmail(auth, email.trim());
+      alert(tx.passwordResetSent);
+    } catch (error) {
+      alert(`${tx.resetPasswordFailed} ${friendlyAuthError(error)}`);
+    }
   };
 
   const saveNow = async () => {
@@ -1699,6 +1811,14 @@ export default function OfflineKpiTracker() {
     popup.print();
   };
 
+  if (!authReady) {
+    return <div className="app-shell min-h-screen p-4" style={themeStyle(theme)}><div className="app-bg fixed inset-0 -z-10" /><div className="auth-shell panel shadow-card"><p className="brand text-center">{tx.authLoading}</p></div></div>;
+  }
+
+  if (!firebaseUser) {
+    return <AuthGate tx={tx} signInEmail={signInEmail} createEmailAccount={createEmailAccount} resetPassword={resetPassword} signInGoogle={signInGoogle} />;
+  }
+
   return (
     <div className="app-shell min-h-screen p-2 sm:p-4" style={themeStyle(theme)}>
       <div className="app-bg fixed inset-0 -z-10" />
@@ -1722,6 +1842,61 @@ export default function OfflineKpiTracker() {
 
         {tab === "levelUps" && <LevelUps tx={tx} levelUps={periodLevelUps} form={levelUpForm} setForm={setLevelUpForm} add={addLevelUp} toggle={toggleLevelUp} remove={(id) => setLevelUps((current) => current.filter((item) => item.id !== id))} />}
       </div>
+    </div>
+  );
+}
+
+function GoogleMark() {
+  return <svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5"><path fill="#4285F4" d="M21.6 12.2c0-.7-.1-1.4-.2-2H12v3.8h5.4c-.2 1.2-.9 2.2-1.9 2.9v2.4h3.1c1.8-1.7 3-4.1 3-7.1Z" /><path fill="#34A853" d="M12 22c2.7 0 5-.9 6.6-2.5l-3.1-2.4c-.9.6-2 .9-3.5.9-2.6 0-4.8-1.8-5.6-4.1H3.2v2.5C4.8 19.7 8.1 22 12 22Z" /><path fill="#FBBC05" d="M6.4 13.9c-.2-.6-.3-1.2-.3-1.9s.1-1.3.3-1.9V7.6H3.2C2.4 8.9 2 10.4 2 12s.4 3.1 1.2 4.4l3.2-2.5Z" /><path fill="#EA4335" d="M12 6c1.5 0 2.8.5 3.8 1.5l2.8-2.8C16.9 3 14.7 2 12 2 8.1 2 4.8 4.3 3.2 7.6l3.2 2.5C7.2 7.8 9.4 6 12 6Z" /></svg>;
+}
+
+function AuthGate({ tx, signInEmail, createEmailAccount, resetPassword, signInGoogle }) {
+  const [mode, setMode] = useState("signin");
+  const [form, setForm] = useState({ firstName: "", lastName: "", jobTitle: "", email: "", password: "" });
+  const update = (field) => (event) => setForm((current) => ({ ...current, [field]: event.target.value }));
+  const submit = (event) => {
+    event.preventDefault();
+    if (mode === "create") {
+      createEmailAccount(form);
+      return;
+    }
+    signInEmail(form);
+  };
+
+  return (
+    <div className="app-shell min-h-screen p-4">
+      <div className="app-bg fixed inset-0 -z-10" />
+      <main className="auth-shell panel shadow-card">
+        <img className="auth-logo" src={`${import.meta.env.BASE_URL}eteach-ios.png`} alt="" />
+        <p className="text-[11px] font-black uppercase brand-text">eTeach Smart Dashboard</p>
+        <h1 className="brand brand-text">{tx.welcomeTitle}</h1>
+        <p className="muted">{tx.welcomeBody}</p>
+        <form className="mt-4 grid gap-2" onSubmit={submit}>
+          {mode === "create" && (
+            <>
+              <div className="grid gap-2 sm:grid-cols-2">
+                <input className="input" autoComplete="given-name" placeholder={tx.firstName} value={form.firstName} onChange={update("firstName")} />
+                <input className="input" autoComplete="family-name" placeholder={tx.lastName} value={form.lastName} onChange={update("lastName")} />
+              </div>
+              <input className="input" autoComplete="organization-title" placeholder={tx.jobTitle} value={form.jobTitle} onChange={update("jobTitle")} />
+            </>
+          )}
+          <input className="input" type="email" autoComplete="email" placeholder={tx.email} value={form.email} onChange={update("email")} />
+          <input className="input" type="password" autoComplete={mode === "create" ? "new-password" : "current-password"} placeholder={tx.password} value={form.password} onChange={update("password")} />
+          <button className="btn primary w-full" type="submit">{mode === "create" ? tx.createAccount : tx.signIn}</button>
+        </form>
+        <button className="google-btn mt-3" onClick={signInGoogle}><GoogleMark /><span>{mode === "create" ? tx.googleCreateAccount : tx.signInGoogle}</span></button>
+        <div className="mt-3 grid gap-2 text-center text-sm font-bold">
+          {mode === "signin" ? (
+            <>
+              <button className="brand-text" onClick={() => resetPassword(form.email)}>{tx.forgotPassword}</button>
+              <button className="muted" onClick={() => setMode("create")}>{tx.createAccount}</button>
+            </>
+          ) : (
+            <button className="muted" onClick={() => setMode("signin")}>{tx.alreadyHaveAccount} {tx.backToSignIn}</button>
+          )}
+        </div>
+      </main>
     </div>
   );
 }

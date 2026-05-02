@@ -1,7 +1,7 @@
 {
-  "name": "eTeach KPI Tracker",
-  "short_name": "KPI Tracker",
-  "description": "Installable KPI tracker for eTeach activity, meetings, notes, and tasks.",
+  "name": "eTeach Smart Dashboard",
+  "short_name": "Smart Dashboard",
+  "description": "Installable smart dashboard for eTeach activity, meetings, notes, opportunities, and tasks.",
   "id": "./",
   "start_url": ".",
   "scope": ".",
@@ -15,6 +15,12 @@
       "src": "favicon.svg",
       "sizes": "any",
       "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "eteach-ios.png",
+      "sizes": "1024x1024",
+      "type": "image/png",
       "purpose": "any maskable"
     }
   ]

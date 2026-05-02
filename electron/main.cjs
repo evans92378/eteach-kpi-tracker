@@ -7,7 +7,7 @@ function createWindow() {
     height: 860,
     minWidth: 390,
     minHeight: 640,
-    title: "eTeach KPI Tracker",
+    title: "eTeach Smart Dashboard",
     backgroundColor: "#25002f",
     autoHideMenuBar: true,
     webPreferences: {

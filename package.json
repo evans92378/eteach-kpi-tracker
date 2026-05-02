@@ -14,7 +14,7 @@
   },
   "build": {
     "appId": "uk.eteach.kpi-tracker",
-    "productName": "eTeach KPI Tracker",
+    "productName": "eTeach Smart Dashboard",
     "files": [
       "dist/**/*",
       "electron/**/*"

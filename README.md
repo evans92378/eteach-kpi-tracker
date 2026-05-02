@@ -1,6 +1,6 @@
-# eTeach KPI Tracker
+# eTeach Smart Dashboard
 
-Offline-capable KPI tracker built with Vite, React, Tailwind CSS, local fonts, and bundled Font Awesome icons.
+Offline-capable eTeach smart dashboard built with Vite, React, Tailwind CSS, local fonts, bundled Font Awesome icons, and cloud save.
 
 ## Local Development
 
