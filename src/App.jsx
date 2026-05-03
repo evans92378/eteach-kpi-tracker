@@ -2175,6 +2175,13 @@ export default function OfflineKpiTracker() {
   const [notesToSelf, setNotesToSelf] = useState(asArray(initialData.notesToSelf));
   const [dismissed, setDismissed] = useState({});
   const [taskDismissed, setTaskDismissed] = useState({});
+  const [toast, setToast] = useState(null);
+  const toastTimer = useRef(null);
+  const showToast = useCallback((msg, type = "info") => {
+    clearTimeout(toastTimer.current);
+    setToast({ msg, type });
+    toastTimer.current = setTimeout(() => setToast(null), 3000);
+  }, []);
 
   const [meetingForm, setMeetingForm] = useState({ school: "", contactName: "", type: firstOptionLabel(optionSets, "meetingTypes"), date: selectedDate, time: "", notes: "", teamsInviteSent: false, doNotAddToKpis: false });
   const [oppForm, setOppForm] = useState({ school: "", name: "", opportunityType: firstOptionLabel(optionSets, "opportunityTypes"), value: "", endDate: selectedDate });
@@ -2405,7 +2412,7 @@ export default function OfflineKpiTracker() {
 
   const required = (values) => {
     if (values.some((value) => !String(value || "").trim())) {
-      alert(tx.required);
+      showToast(tx.required, "error");
       return false;
     }
     return true;
@@ -2472,7 +2479,7 @@ export default function OfflineKpiTracker() {
 
   const addSelfNote = () => {
     const text = selfNoteText.trim();
-    if (!text) return alert(tx.required);
+    if (!text) { showToast(tx.required, "error"); return; }
     setNotesToSelf((current) => [{ id: uid(), text, date: selectedDate, createdAt: new Date().toISOString() }, ...current]);
     setSelfNoteText("");
   };
@@ -2604,7 +2611,7 @@ export default function OfflineKpiTracker() {
 
   const signInGoogle = async () => {
     if (!browserOnline()) {
-      alert(tx.offlineSaveBlocked);
+      showToast(tx.offlineSaveBlocked, "error");
       return null;
     }
     try {
@@ -2612,7 +2619,7 @@ export default function OfflineKpiTracker() {
       setFirebaseUser(result.user);
       return result.user;
     } catch (error) {
-      alert(`${tx.googleSignInFailed} ${friendlyAuthError(error)}`);
+      showToast(`${tx.googleSignInFailed} ${friendlyAuthError(error)}`, "error");
       return null;
     }
   };
@@ -2623,17 +2630,17 @@ export default function OfflineKpiTracker() {
   };
 
   const signInEmail = async ({ email, password }) => {
-    if (!browserOnline()) return alert(tx.offlineSaveBlocked);
+    if (!browserOnline()) return tx.offlineSaveBlocked;
     try {
       await signInWithEmailAndPassword(auth, email.trim(), password);
     } catch (error) {
-      alert(`${tx.signInFailed} ${friendlyAuthError(error)}`);
+      return `${tx.signInFailed} ${friendlyAuthError(error)}`;
     }
   };
 
   const createEmailAccount = async ({ firstName, lastName, jobTitle, email, password }) => {
-    if (!browserOnline()) return alert(tx.offlineSaveBlocked);
-    if (!required([firstName, lastName, jobTitle, email, password])) return;
+    if (!browserOnline()) return tx.offlineSaveBlocked;
+    if ([firstName, lastName, jobTitle, email, password].some((v) => !String(v || "").trim())) return tx.required;
     try {
       const result = await createUserWithEmailAndPassword(auth, email.trim(), password);
       const profile = { firstName: firstName.trim(), lastName: lastName.trim(), jobTitle: jobTitle.trim(), email: email.trim() };
@@ -2646,18 +2653,18 @@ export default function OfflineKpiTracker() {
       setFirebaseUser(result.user);
       setCloudStatus(tx.accountCreated);
     } catch (error) {
-      alert(`${tx.createAccountFailed} ${friendlyAuthError(error)}`);
+      return `${tx.createAccountFailed} ${friendlyAuthError(error)}`;
     }
   };
 
   const resetPassword = async (email) => {
-    if (!browserOnline()) return alert(tx.offlineSaveBlocked);
-    if (!String(email || "").trim()) return alert(tx.required);
+    if (!browserOnline()) return { error: tx.offlineSaveBlocked };
+    if (!String(email || "").trim()) return { error: tx.required };
     try {
       await sendPasswordResetEmail(auth, email.trim());
-      alert(tx.passwordResetSent);
+      return { success: tx.passwordResetSent };
     } catch (error) {
-      alert(`${tx.resetPasswordFailed} ${friendlyAuthError(error)}`);
+      return { error: `${tx.resetPasswordFailed} ${friendlyAuthError(error)}` };
     }
   };
 
@@ -2674,7 +2681,7 @@ export default function OfflineKpiTracker() {
     try {
       await setDoc(trackerDoc(user.uid), { state: saved, updatedAt: serverTimestamp() }, { merge: true });
       setCloudStatus(tx.savedCloud);
-      alert(tx.savedCloud);
+      showToast(tx.savedCloud, "success");
     } catch {
       setOfflinePrompt(true);
       setCloudStatus(tx.unsavedChangesWarning);
@@ -2698,7 +2705,7 @@ export default function OfflineKpiTracker() {
         writeStoredData(saved);
         applySavedState(saved);
       } catch {
-        alert("Could not import that file.");
+        showToast("Could not import that file.", "error");
       }
       event.target.value = "";
     };
@@ -2712,7 +2719,7 @@ export default function OfflineKpiTracker() {
 
   const printReport = () => {
     const popup = window.open("", "_blank");
-    if (!popup) return alert(tx.popBlocked);
+    if (!popup) { showToast(tx.popBlocked, "error"); return; }
     popup.document.write(makeReport({ period, totals, salesSummary, meetings: periodMeetings, opportunities: periodOpps, calls: periodCalls, levelUps: periodLevelUps, notes: periodNotes, notesToSelf: periodSelfNotes }, tx));
     popup.document.close();
     popup.print();
@@ -2749,7 +2756,7 @@ export default function OfflineKpiTracker() {
         {meetingAlerts.length > 0 && <Reminder tx={tx} alerts={meetingAlerts} dismiss={() => setDismissed(Object.fromEntries(meetingAlerts.map((m) => [m.id, true])))} />}
         {taskAlerts.length > 0 && <TaskDeadlineReminder tx={tx} tasks={taskAlerts} dismiss={() => setTaskDismissed(Object.fromEntries(taskAlerts.map((task) => [task.id, true])))} />}
         <CurrentFocus tx={tx} schedule={focusSchedule} setSchedule={setFocusSchedule} />
-        <MeetingsToday tx={tx} optionSets={optionSets} today={meetingsTodayDate} meetings={todayMeetings} updateMeeting={updateMeeting} removeMeeting={(id) => setMeetings((current) => current.filter((m) => m.id !== id))} />
+        <MeetingsToday tx={tx} optionSets={optionSets} today={meetingsTodayDate} meetings={todayMeetings} updateMeeting={updateMeeting} removeMeeting={(id) => setMeetings((current) => current.filter((m) => m.id !== id))} showToast={showToast} />
         <SalesSummaryBar tx={tx} salesSummary={salesSummary} />
         <Tabs tx={tx} tab={tab} setTab={setTab} />
 
@@ -2757,14 +2764,28 @@ export default function OfflineKpiTracker() {
 
         {tab === "opportunities" && <OpportunitiesTab tx={tx} optionSets={optionSets} form={oppForm} setForm={setOppForm} add={addOpportunity} opportunities={periodOpps} remove={(id) => setOpportunities((current) => current.filter((o) => o.id !== id))} updateOpp={updateOpp} sectionOrder={sectionOrder.opportunities} setSectionOrder={(order) => setSectionOrder((current) => ({ ...current, opportunities: order }))} />}
 
-        {tab === "tasks" && <Tasks tx={tx} optionSets={optionSets} live={liveTasks} closed={closedTasks} form={taskForm} setForm={setTaskForm} add={addTask} update={updateTask} toggle={toggleTask} remove={(id) => setTasks((current) => current.filter((task) => task.id !== id))} notes={notes} openNote={() => setTab("notes")} totals={totals} salesSummary={salesSummary} meetings={periodMeetings} calls={periodCalls} levelUps={periodLevelUps} sectionOrder={sectionOrder.tasks} setSectionOrder={(order) => setSectionOrder((current) => ({ ...current, tasks: order }))} />}
+        {tab === "tasks" && <Tasks tx={tx} optionSets={optionSets} live={liveTasks} closed={closedTasks} form={taskForm} setForm={setTaskForm} add={addTask} update={updateTask} toggle={toggleTask} remove={(id) => setTasks((current) => current.filter((task) => task.id !== id))} notes={notes} openNote={() => setTab("notes")} totals={totals} salesSummary={salesSummary} meetings={periodMeetings} calls={periodCalls} levelUps={periodLevelUps} sectionOrder={sectionOrder.tasks} setSectionOrder={(order) => setSectionOrder((current) => ({ ...current, tasks: order }))} showToast={showToast} />}
 
-        {tab === "notes" && <Notes tx={tx} optionSets={optionSets} integrations={integrations} featureFlags={featureFlags} openIntegrationSettings={() => setSettingsOpen(true)} notes={periodNotes} notesToSelf={periodSelfNotes} selfNoteText={selfNoteText} setSelfNoteText={setSelfNoteText} addSelfNote={addSelfNote} removeSelfNote={(id) => setNotesToSelf((current) => current.filter((note) => note.id !== id))} tasks={tasks} form={noteForm} setForm={setNoteForm} addNote={addNote} remove={(id) => setNotes((current) => current.filter((note) => note.id !== id))} toggleTask={toggleTask} sectionOrder={sectionOrder.notes} setSectionOrder={(order) => setSectionOrder((current) => ({ ...current, notes: order }))} />}
+        {tab === "notes" && <Notes tx={tx} optionSets={optionSets} integrations={integrations} featureFlags={featureFlags} openIntegrationSettings={() => setSettingsOpen(true)} notes={periodNotes} notesToSelf={periodSelfNotes} selfNoteText={selfNoteText} setSelfNoteText={setSelfNoteText} addSelfNote={addSelfNote} removeSelfNote={(id) => setNotesToSelf((current) => current.filter((note) => note.id !== id))} tasks={tasks} form={noteForm} setForm={setNoteForm} addNote={addNote} remove={(id) => setNotes((current) => current.filter((note) => note.id !== id))} toggleTask={toggleTask} sectionOrder={sectionOrder.notes} setSectionOrder={(order) => setSectionOrder((current) => ({ ...current, notes: order }))} showToast={showToast} />}
 
         {tab === "levelUps" && <LevelUps tx={tx} levelUps={periodLevelUps} form={levelUpForm} setForm={setLevelUpForm} add={addLevelUp} toggle={toggleLevelUp} remove={(id) => setLevelUps((current) => current.filter((item) => item.id !== id))} sectionOrder={sectionOrder.levelUps} setSectionOrder={(order) => setSectionOrder((current) => ({ ...current, levelUps: order }))} />}
 
         {tab === "portfolio" && <PortfolioTab tx={tx} records={portfolioRecords} mapping={portfolioMapping} form={portfolioForm} setForm={setPortfolioForm} addIndirect={addIndirectPortfolioRecord} updateRecord={updatePortfolioRecord} syncNow={syncPortfolioNow} remove={(id) => setPortfolioRecords((current) => current.filter((record) => record.id !== id))} sectionOrder={sectionOrder.portfolio} setSectionOrder={(order) => setSectionOrder((current) => ({ ...current, portfolio: order }))} />}
       </div>
+      {toast && <Toast message={toast.msg} type={toast.type} onDismiss={() => setToast(null)} />}
+    </div>
+  );
+}
+
+function Toast({ message, type, onDismiss }) {
+  const cls =
+    type === "error" ? "bg-red-600 text-white" :
+    type === "success" ? "bg-green-700 text-white" :
+    "bg-[#25002f] text-white";
+  return (
+    <div className={`fixed bottom-5 right-5 z-[60] flex items-center gap-3 rounded-2xl px-4 py-3 shadow-2xl text-sm font-bold ${cls}`}>
+      <span>{message}</span>
+      <button onClick={onDismiss} className="opacity-70 hover:opacity-100"><Fa icon={faXmark} /></button>
     </div>
   );
 }
@@ -2785,14 +2806,19 @@ function AuthGate({ tx, signInEmail, createEmailAccount, resetPassword, signInGo
   const [mode, setMode] = useState("signin");
   const [form, setForm] = useState({ firstName: "", lastName: "", jobTitle: "", email: "", password: "" });
   const flags = cleanFeatureFlags(featureFlags);
-  const update = (field) => (event) => setForm((current) => ({ ...current, [field]: event.target.value }));
-  const submit = (event) => {
+  const [authMsg, setAuthMsg] = useState(null); // { type: "error"|"success", text }
+  const update = (field) => (event) => { setAuthMsg(null); setForm((current) => ({ ...current, [field]: event.target.value })); };
+  const submit = async (event) => {
     event.preventDefault();
-    if (mode === "create") {
-      createEmailAccount(form);
-      return;
-    }
-    signInEmail(form);
+    setAuthMsg(null);
+    const error = mode === "create" ? await createEmailAccount(form) : await signInEmail(form);
+    if (error) setAuthMsg({ type: "error", text: error });
+  };
+  const handleResetPassword = async () => {
+    setAuthMsg(null);
+    const result = await resetPassword(form.email);
+    if (result?.success) setAuthMsg({ type: "success", text: result.success });
+    else if (result?.error) setAuthMsg({ type: "error", text: result.error });
   };
 
   return (
@@ -2816,6 +2842,9 @@ function AuthGate({ tx, signInEmail, createEmailAccount, resetPassword, signInGo
           )}
           <input className="input" type="email" autoComplete="email" placeholder={tx.email} value={form.email} onChange={update("email")} />
           <input className="input" type="password" autoComplete={mode === "create" ? "new-password" : "current-password"} placeholder={tx.password} value={form.password} onChange={update("password")} />
+          {authMsg && (
+            <p className={`text-sm font-bold ${authMsg.type === "error" ? "text-red-600" : "text-green-700"}`}>{authMsg.text}</p>
+          )}
           <button className="btn primary w-full" type="submit">{mode === "create" ? tx.createAccount : tx.signIn}</button>
         </form>
         <button className="google-btn mt-3" onClick={signInGoogle}><GoogleMark /><span>{mode === "create" ? tx.googleCreateAccount : tx.signInGoogle}</span></button>
@@ -2831,11 +2860,11 @@ function AuthGate({ tx, signInEmail, createEmailAccount, resetPassword, signInGo
         <div className="mt-3 grid gap-2 text-center text-sm font-bold">
           {mode === "signin" ? (
             <>
-              <button className="brand-text" onClick={() => resetPassword(form.email)}>{tx.forgotPassword}</button>
-              <button className="muted" onClick={() => setMode("create")}>{tx.createAccount}</button>
+              <button className="brand-text" onClick={handleResetPassword}>{tx.forgotPassword}</button>
+              <button className="muted" onClick={() => { setMode("create"); setAuthMsg(null); }}>{tx.createAccount}</button>
             </>
           ) : (
-            <button className="muted" onClick={() => setMode("signin")}>{tx.alreadyHaveAccount} {tx.backToSignIn}</button>
+            <button className="muted" onClick={() => { setMode("signin"); setAuthMsg(null); }}>{tx.alreadyHaveAccount} {tx.backToSignIn}</button>
           )}
         </div>
       </main>
@@ -3153,8 +3182,10 @@ function CurrentFocus({ tx, schedule, setSchedule }) {
 
 function MeetingEditPanel({ tx, optionSets, meeting, updateMeeting, close }) {
   const [draft, setDraft] = useState(() => ({ ...meeting }));
+  const [error, setError] = useState("");
   const save = () => {
-    if (!draft.school || !draft.date || !draft.time) return alert(tx.required);
+    if (!draft.school || !draft.date || !draft.time) { setError(tx.required); return; }
+    setError("");
     updateMeeting(meeting.id, {
       contactName: draft.contactName || "",
       school: draft.school,
@@ -3167,12 +3198,12 @@ function MeetingEditPanel({ tx, optionSets, meeting, updateMeeting, close }) {
     });
     close();
   };
-  return <div className="mt-3 rounded-3xl bg-white p-3"><div className="grid gap-2"><input className="input" placeholder={tx.contactName} value={draft.contactName || ""} onChange={(e) => setDraft({ ...draft, contactName: e.target.value })} /><input className="input" placeholder={tx.school} value={draft.school || ""} onChange={(e) => setDraft({ ...draft, school: e.target.value })} /><select className="input" value={draft.type || ""} onChange={(e) => setDraft({ ...draft, type: e.target.value })}>{labelsFor(optionSets, "meetingTypes").map((x) => <option key={x}>{x}</option>)}</select><div className="grid grid-cols-2 gap-2"><input className="input" type="date" value={draft.date || todayValue()} onChange={(e) => setDraft({ ...draft, date: e.target.value })} /><input className="input" type="time" value={draft.time || ""} onChange={(e) => setDraft({ ...draft, time: e.target.value })} /></div><textarea className="input min-h-[80px]" placeholder={tx.notes} value={draft.notes || ""} onChange={(e) => setDraft({ ...draft, notes: e.target.value })} /><label className="block rounded-2xl brand-soft p-2 text-xs font-black"><input type="checkbox" checked={Boolean(draft.teamsInviteSent)} onChange={(e) => setDraft({ ...draft, teamsInviteSent: e.target.checked })} /> {tx.teamsInviteSent}</label><label className="block rounded-2xl brand-soft p-2 text-xs font-black"><input type="checkbox" checked={Boolean(draft.doNotAddToKpis)} onChange={(e) => setDraft({ ...draft, doNotAddToKpis: e.target.checked })} /> {tx.doNotAddToKpis}</label><div className="grid grid-cols-2 gap-2"><button className="btn primary" onClick={save}><Fa icon={faFloppyDisk} /> <span>{tx.save}</span></button><button className="btn soft" onClick={close}><Fa icon={faXmark} /> <span>{tx.dismiss}</span></button></div></div></div>;
+  return <div className="mt-3 rounded-3xl bg-white p-3"><div className="grid gap-2"><input className="input" placeholder={tx.contactName} value={draft.contactName || ""} onChange={(e) => setDraft({ ...draft, contactName: e.target.value })} /><input className="input" placeholder={tx.school} value={draft.school || ""} onChange={(e) => setDraft({ ...draft, school: e.target.value })} /><select className="input" value={draft.type || ""} onChange={(e) => setDraft({ ...draft, type: e.target.value })}>{labelsFor(optionSets, "meetingTypes").map((x) => <option key={x}>{x}</option>)}</select><div className="grid grid-cols-2 gap-2"><input className="input" type="date" value={draft.date || todayValue()} onChange={(e) => setDraft({ ...draft, date: e.target.value })} /><input className="input" type="time" value={draft.time || ""} onChange={(e) => setDraft({ ...draft, time: e.target.value })} /></div><textarea className="input min-h-[80px]" placeholder={tx.notes} value={draft.notes || ""} onChange={(e) => setDraft({ ...draft, notes: e.target.value })} /><label className="block rounded-2xl brand-soft p-2 text-xs font-black"><input type="checkbox" checked={Boolean(draft.teamsInviteSent)} onChange={(e) => setDraft({ ...draft, teamsInviteSent: e.target.checked })} /> {tx.teamsInviteSent}</label><label className="block rounded-2xl brand-soft p-2 text-xs font-black"><input type="checkbox" checked={Boolean(draft.doNotAddToKpis)} onChange={(e) => setDraft({ ...draft, doNotAddToKpis: e.target.checked })} /> {tx.doNotAddToKpis}</label>{error && <p className="text-xs font-bold text-red-600">{error}</p>}<div className="grid grid-cols-2 gap-2"><button className="btn primary" onClick={save}><Fa icon={faFloppyDisk} /> <span>{tx.save}</span></button><button className="btn soft" onClick={close}><Fa icon={faXmark} /> <span>{tx.dismiss}</span></button></div></div></div>;
 }
 
-function MeetingsToday({ tx, optionSets, today, meetings, updateMeeting, removeMeeting }) {
+function MeetingsToday({ tx, optionSets, today, meetings, updateMeeting, removeMeeting, showToast }) {
   const [editingId, setEditingId] = useState(null);
-  const copyEmail = (meeting) => copyToClipboard(meetingEmail(meeting)).then(() => alert(tx.copiedEmail));
+  const copyEmail = (meeting) => copyToClipboard(meetingEmail(meeting)).then(() => showToast(tx.copiedEmail, "success"));
   return <section className="panel shadow-card mb-3 p-3"><div className="flex justify-between gap-3"><div><p className="text-[10px] font-black uppercase brand-accent">{tx.meetingsToday}</p><h2 className="brand brand-text">{fmtLong(today)}</h2></div><span className="count-badge brand-pill">{meetings.length}</span></div><div className="mt-2 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">{meetings.length ? meetings.map((m) => <div key={m.id} className="rounded-2xl brand-soft p-3"><div className="flex justify-between gap-2"><div className="min-w-0"><b>{m.time} - {m.school}</b><div className="text-xs muted">{m.contactName ? `${m.contactName} - ` : ""}{m.type}</div></div><div className="flex gap-1"><button className="btn soft bg-white" title={tx.editMeeting} onClick={() => setEditingId(editingId === m.id ? null : m.id)}><Fa icon={faPenToSquare} /></button><button className="btn soft bg-white text-red-700" title={tx.reset} onClick={() => removeMeeting(m.id)}><Fa icon={faTrashCan} /></button></div></div>{m.notes ? <p className="mt-2 whitespace-pre-wrap text-xs muted">{m.notes}</p> : null}<div className="mt-2 flex flex-wrap gap-2"><Pill good={m.teamsInviteSent}>{m.teamsInviteSent ? tx.teamsSent : tx.teamsNotSent}</Pill>{m.doNotAddToKpis ? <Pill warn>{tx.doNotAddToKpis}</Pill> : null}</div><button className="btn primary mt-2 w-full" onClick={() => copyEmail(m)}><Fa icon={faCopy} /> <span>{tx.copyEmail}</span></button>{editingId === m.id && <MeetingEditPanel tx={tx} optionSets={optionSets} meeting={m} updateMeeting={updateMeeting} close={() => setEditingId(null)} />}</div>) : <div className="rounded-2xl brand-soft p-3 text-xs muted">{tx.noMeetingsToday}</div>}</div></section>;
 }
 
@@ -3299,8 +3330,10 @@ function Kpis(props) {
 function OpportunityEditPanel({ tx, optionSets, opportunity, update, close }) {
   const typeOptions = [...new Set([...labelsFor(optionSets, "opportunityTypes"), opportunity.opportunityType].filter(Boolean))];
   const [draft, setDraft] = useState(() => ({ ...opportunity }));
+  const [error, setError] = useState("");
   const save = () => {
-    if (![draft.school, draft.name, draft.opportunityType, draft.date, draft.endDate].every((value) => String(value || "").trim())) return alert(tx.required);
+    if (![draft.school, draft.name, draft.opportunityType, draft.date, draft.endDate].every((value) => String(value || "").trim())) { setError(tx.required); return; }
+    setError("");
     update(opportunity.id, {
       school: draft.school.trim(),
       name: draft.name.trim(),
@@ -3321,7 +3354,7 @@ function OpportunityEditPanel({ tx, optionSets, opportunity, update, close }) {
     });
     close();
   };
-  return <div className="mt-3 rounded-3xl bg-white p-3"><div className="grid gap-2"><input className="input" placeholder={tx.opportunityName} value={draft.name || ""} onChange={(e) => setDraft({ ...draft, name: e.target.value })} /><input className="input" placeholder={tx.school} value={draft.school || ""} onChange={(e) => setDraft({ ...draft, school: e.target.value })} /><select className="input" value={draft.opportunityType || ""} onChange={(e) => setDraft({ ...draft, opportunityType: e.target.value })}>{typeOptions.map((x) => <option key={x}>{x}</option>)}</select><input className="input" type="number" min="0" step="0.01" placeholder={tx.opportunityValue} value={draft.value || ""} onChange={(e) => setDraft({ ...draft, value: e.target.value })} /><div className="grid grid-cols-2 gap-2"><label className="grid gap-1 text-[10px] font-black uppercase muted">{tx.dateCreated}<input className="input" type="date" value={draft.date || todayValue()} onChange={(e) => setDraft({ ...draft, date: e.target.value })} /></label><label className="grid gap-1 text-[10px] font-black uppercase muted">{tx.endDate}<input className="input" type="date" value={draft.endDate || draft.date || todayValue()} onChange={(e) => setDraft({ ...draft, endDate: e.target.value })} /></label></div><div className="grid gap-2 sm:grid-cols-3"><select className="input" value={draft.contactStatus || CONTACT_STATUSES[0]} onChange={(e) => setDraft({ ...draft, contactStatus: e.target.value })}>{CONTACT_STATUSES.map((x) => <option key={x}>{x}</option>)}</select><select className="input" value={draft.emailStatus || EMAIL_STATUSES[0]} onChange={(e) => setDraft({ ...draft, emailStatus: e.target.value })}>{EMAIL_STATUSES.map((x) => <option key={x}>{x}</option>)}</select><select className="input" value={draft.callStatus || CALL_STATUSES[0]} onChange={(e) => setDraft({ ...draft, callStatus: e.target.value })}>{CALL_STATUSES.map((x) => <option key={x}>{x}</option>)}</select></div><div className="grid grid-cols-2 gap-2"><button className="btn primary" onClick={save}><Fa icon={faFloppyDisk} /> <span>{tx.save}</span></button><button className="btn soft" onClick={close}><Fa icon={faXmark} /> <span>{tx.dismiss}</span></button></div></div></div>;
+  return <div className="mt-3 rounded-3xl bg-white p-3"><div className="grid gap-2"><input className="input" placeholder={tx.opportunityName} value={draft.name || ""} onChange={(e) => setDraft({ ...draft, name: e.target.value })} /><input className="input" placeholder={tx.school} value={draft.school || ""} onChange={(e) => setDraft({ ...draft, school: e.target.value })} /><select className="input" value={draft.opportunityType || ""} onChange={(e) => setDraft({ ...draft, opportunityType: e.target.value })}>{typeOptions.map((x) => <option key={x}>{x}</option>)}</select><input className="input" type="number" min="0" step="0.01" placeholder={tx.opportunityValue} value={draft.value || ""} onChange={(e) => setDraft({ ...draft, value: e.target.value })} /><div className="grid grid-cols-2 gap-2"><label className="grid gap-1 text-[10px] font-black uppercase muted">{tx.dateCreated}<input className="input" type="date" value={draft.date || todayValue()} onChange={(e) => setDraft({ ...draft, date: e.target.value })} /></label><label className="grid gap-1 text-[10px] font-black uppercase muted">{tx.endDate}<input className="input" type="date" value={draft.endDate || draft.date || todayValue()} onChange={(e) => setDraft({ ...draft, endDate: e.target.value })} /></label></div><div className="grid gap-2 sm:grid-cols-3"><select className="input" value={draft.contactStatus || CONTACT_STATUSES[0]} onChange={(e) => setDraft({ ...draft, contactStatus: e.target.value })}>{CONTACT_STATUSES.map((x) => <option key={x}>{x}</option>)}</select><select className="input" value={draft.emailStatus || EMAIL_STATUSES[0]} onChange={(e) => setDraft({ ...draft, emailStatus: e.target.value })}>{EMAIL_STATUSES.map((x) => <option key={x}>{x}</option>)}</select><select className="input" value={draft.callStatus || CALL_STATUSES[0]} onChange={(e) => setDraft({ ...draft, callStatus: e.target.value })}>{CALL_STATUSES.map((x) => <option key={x}>{x}</option>)}</select></div>{error && <p className="text-xs font-bold text-red-600">{error}</p>}<div className="grid grid-cols-2 gap-2"><button className="btn primary" onClick={save}><Fa icon={faFloppyDisk} /> <span>{tx.save}</span></button><button className="btn soft" onClick={close}><Fa icon={faXmark} /> <span>{tx.dismiss}</span></button></div></div></div>;
 }
 
 function OpportunityCard({ tx, optionSets, opportunity, updateOpp, remove }) {
@@ -3329,14 +3362,16 @@ function OpportunityCard({ tx, optionSets, opportunity, updateOpp, remove }) {
   const [markingLost, setMarkingLost] = useState(false);
   const [lostReason, setLostReason] = useState(LOST_REASONS[0]);
   const [lostReasonOther, setLostReasonOther] = useState("");
+  const [lostError, setLostError] = useState("");
   const status = normalizeOpportunityStatus(opportunity.status);
   const lostText = opportunity.lostReason === "Other" && opportunity.lostReasonOther ? opportunity.lostReasonOther : opportunity.lostReason;
   const markLost = () => {
-    if (!lostReason || (lostReason === "Other" && !lostReasonOther.trim())) return alert(tx.required);
+    if (!lostReason || (lostReason === "Other" && !lostReasonOther.trim())) { setLostError(tx.required); return; }
+    setLostError("");
     updateOpp(opportunity.id, { status: "lost", lostReason, lostReasonOther: lostReason === "Other" ? lostReasonOther.trim() : "" });
     setMarkingLost(false);
   };
-  return <div className="panel shadow-card opportunity-card p-3"><div className="flex justify-between gap-2"><div className="min-w-0"><b>{opportunity.name || opportunity.opportunityName}</b><div className="text-xs muted">{opportunity.school} - {opportunityTypeLabel(opportunity)}</div></div><div className="flex flex-wrap justify-end gap-1"><button className="btn soft bg-white" title={tx.editTask} onClick={() => setEditing(!editing)}><Fa icon={faPenToSquare} /></button><button className="btn soft bg-white text-red-700" onClick={() => remove(opportunity.id)}><Fa icon={faTrashCan} /></button></div></div><div className="mt-2 grid gap-2 text-xs sm:grid-cols-2">{status === "pending" && <><Pill>{tx.contactStatus}: {opportunity.contactStatus}</Pill><Pill warn={opportunityDeadlineLabel(opportunity, tx) === tx.pastDeadline}>{opportunityDeadlineLabel(opportunity, tx)}</Pill><Pill>{tx.emailStatus}: {opportunity.emailStatus}</Pill><Pill>{tx.callStatus}: {opportunity.callStatus}</Pill><div className="rounded-2xl bg-white/70 p-2 font-black">{opportunityLastActivity(opportunity, tx)}</div><div className="rounded-2xl bg-white/70 p-2 font-black">{tx.suggestedAction}: {opportunitySuggestedAction(opportunity, tx)}</div><div className="rounded-2xl bg-white/70 p-2 font-black">{formatMoney(opportunity.value)}</div></>}{status === "won" && <><Pill good>{tx.won}</Pill><Pill>{tx.closedDate}: {fmtDate(opportunity.closedDate || opportunity.wonDate)}</Pill><div className="rounded-2xl bg-white/70 p-2 font-black">{formatMoney(opportunity.value)}</div><div className="rounded-2xl bg-white/70 p-2 font-black">{tx.totalCommission}: {formatMoney(Number(opportunity.value || 0) * 0.1)}</div><Pill>{tx.emailStatus}: {opportunity.emailStatus}</Pill><Pill>{tx.callStatus}: {opportunity.callStatus}</Pill></>}{status === "lost" && <><Pill warn>{tx.lost}</Pill><Pill>{tx.lostReason}: {lostText}</Pill><div className="rounded-2xl bg-white/70 p-2 font-black">{opportunityLastActivity(opportunity, tx)}</div><div className="rounded-2xl bg-white/70 p-2 font-black">{formatMoney(opportunity.value)}</div><Pill>{tx.emailStatus}: {opportunity.emailStatus}</Pill><Pill>{tx.callStatus}: {opportunity.callStatus}</Pill></>}</div><div className="mt-3 grid gap-2 sm:grid-cols-3">{status === "pending" && <><button className="btn primary" onClick={() => updateOpp(opportunity.id, { status: "won" })}>{tx.markAsWon}</button><button className="btn soft" onClick={() => setMarkingLost(!markingLost)}>{tx.markAsLost}</button></>}{status !== "pending" && <button className="btn primary" onClick={() => updateOpp(opportunity.id, { status: "pending" })}>{tx.reopenOpportunity}</button>}<button className="btn soft" onClick={() => setEditing(!editing)}>{tx.editTask}</button></div>{markingLost && <div className="mt-2 rounded-3xl bg-white p-3"><select className="input" value={lostReason} onChange={(e) => setLostReason(e.target.value)}>{LOST_REASONS.map((reason) => <option key={reason}>{reason}</option>)}</select>{lostReason === "Other" && <input className="input mt-2" placeholder={tx.otherLostReason} value={lostReasonOther} onChange={(e) => setLostReasonOther(e.target.value)} />}<button className="btn primary mt-2" onClick={markLost}>{tx.markAsLost}</button></div>}{editing && <OpportunityEditPanel tx={tx} optionSets={optionSets} opportunity={opportunity} update={updateOpp} close={() => setEditing(false)} />}</div>;
+  return <div className="panel shadow-card opportunity-card p-3"><div className="flex justify-between gap-2"><div className="min-w-0"><b>{opportunity.name || opportunity.opportunityName}</b><div className="text-xs muted">{opportunity.school} - {opportunityTypeLabel(opportunity)}</div></div><div className="flex flex-wrap justify-end gap-1"><button className="btn soft bg-white" title={tx.editTask} onClick={() => setEditing(!editing)}><Fa icon={faPenToSquare} /></button><button className="btn soft bg-white text-red-700" onClick={() => remove(opportunity.id)}><Fa icon={faTrashCan} /></button></div></div><div className="mt-2 grid gap-2 text-xs sm:grid-cols-2">{status === "pending" && <><Pill>{tx.contactStatus}: {opportunity.contactStatus}</Pill><Pill warn={opportunityDeadlineLabel(opportunity, tx) === tx.pastDeadline}>{opportunityDeadlineLabel(opportunity, tx)}</Pill><Pill>{tx.emailStatus}: {opportunity.emailStatus}</Pill><Pill>{tx.callStatus}: {opportunity.callStatus}</Pill><div className="rounded-2xl bg-white/70 p-2 font-black">{opportunityLastActivity(opportunity, tx)}</div><div className="rounded-2xl bg-white/70 p-2 font-black">{tx.suggestedAction}: {opportunitySuggestedAction(opportunity, tx)}</div><div className="rounded-2xl bg-white/70 p-2 font-black">{formatMoney(opportunity.value)}</div></>}{status === "won" && <><Pill good>{tx.won}</Pill><Pill>{tx.closedDate}: {fmtDate(opportunity.closedDate || opportunity.wonDate)}</Pill><div className="rounded-2xl bg-white/70 p-2 font-black">{formatMoney(opportunity.value)}</div><div className="rounded-2xl bg-white/70 p-2 font-black">{tx.totalCommission}: {formatMoney(Number(opportunity.value || 0) * 0.1)}</div><Pill>{tx.emailStatus}: {opportunity.emailStatus}</Pill><Pill>{tx.callStatus}: {opportunity.callStatus}</Pill></>}{status === "lost" && <><Pill warn>{tx.lost}</Pill><Pill>{tx.lostReason}: {lostText}</Pill><div className="rounded-2xl bg-white/70 p-2 font-black">{opportunityLastActivity(opportunity, tx)}</div><div className="rounded-2xl bg-white/70 p-2 font-black">{formatMoney(opportunity.value)}</div><Pill>{tx.emailStatus}: {opportunity.emailStatus}</Pill><Pill>{tx.callStatus}: {opportunity.callStatus}</Pill></>}</div><div className="mt-3 grid gap-2 sm:grid-cols-3">{status === "pending" && <><button className="btn primary" onClick={() => updateOpp(opportunity.id, { status: "won" })}>{tx.markAsWon}</button><button className="btn soft" onClick={() => setMarkingLost(!markingLost)}>{tx.markAsLost}</button></>}{status !== "pending" && <button className="btn primary" onClick={() => updateOpp(opportunity.id, { status: "pending" })}>{tx.reopenOpportunity}</button>}<button className="btn soft" onClick={() => setEditing(!editing)}>{tx.editTask}</button></div>{markingLost && <div className="mt-2 rounded-3xl bg-white p-3"><select className="input" value={lostReason} onChange={(e) => { setLostReason(e.target.value); setLostError(""); }}>{LOST_REASONS.map((reason) => <option key={reason}>{reason}</option>)}</select>{lostReason === "Other" && <input className="input mt-2" placeholder={tx.otherLostReason} value={lostReasonOther} onChange={(e) => { setLostReasonOther(e.target.value); setLostError(""); }} />}{lostError && <p className="mt-1 text-xs font-bold text-red-600">{lostError}</p>}<button className="btn primary mt-2" onClick={markLost}>{tx.markAsLost}</button></div>}{editing && <OpportunityEditPanel tx={tx} optionSets={optionSets} opportunity={opportunity} update={updateOpp} close={() => setEditing(false)} />}</div>;
 }
 
 function OpportunitiesTab({ tx, optionSets, form, setForm, add, opportunities, remove, updateOpp, sectionOrder, setSectionOrder }) {
@@ -3494,8 +3529,10 @@ function LevelUps({ tx, levelUps, form, setForm, add, toggle, remove, sectionOrd
 
 function TaskEditPanel({ tx, optionSets, task, update, close }) {
   const [draft, setDraft] = useState(() => ({ ...task }));
+  const [error, setError] = useState("");
   const save = () => {
-    if (![draft.title, draft.school, draft.dueDate, draft.dueTime].every((value) => String(value || "").trim())) return alert(tx.required);
+    if (![draft.title, draft.school, draft.dueDate, draft.dueTime].every((value) => String(value || "").trim())) { setError(tx.required); return; }
+    setError("");
     update(task.id, {
       title: draft.title.trim(),
       school: draft.school.trim(),
@@ -3509,7 +3546,7 @@ function TaskEditPanel({ tx, optionSets, task, update, close }) {
     });
     close();
   };
-  return <div className="mt-3 rounded-3xl bg-white p-3"><div className="grid gap-2"><input className="input" placeholder={tx.school} value={draft.school || ""} onChange={(e) => setDraft({ ...draft, school: e.target.value })} /><input className="input" placeholder={tx.taskType} value={draft.title || ""} onChange={(e) => setDraft({ ...draft, title: e.target.value, type: e.target.value, taskText: e.target.value })} /><textarea className="input min-h-[80px]" placeholder={tx.notes} value={draft.notes || ""} onChange={(e) => setDraft({ ...draft, notes: e.target.value })} /><div className="grid grid-cols-2 gap-2"><input className="input" type="date" value={draft.dueDate || todayValue()} onChange={(e) => setDraft({ ...draft, dueDate: e.target.value })} /><input className="input" type="time" value={draft.dueTime || ""} onChange={(e) => setDraft({ ...draft, dueTime: e.target.value })} /></div><div className="grid grid-cols-2 gap-2">{PRIORITIES.map((priority) => <button key={priority.value} className={"priority-choice priority-" + priority.value + (draft.priority === priority.value ? " selected" : "")} onClick={() => setDraft({ ...draft, priority: priority.value })}>{priorityLabel(priority.value, tx)}</button>)}</div><div className="grid grid-cols-2 gap-2"><button className="btn primary" onClick={save}><Fa icon={faFloppyDisk} /> <span>{tx.updateTask}</span></button><button className="btn soft" onClick={close}><Fa icon={faXmark} /> <span>{tx.dismiss}</span></button></div></div></div>;
+  return <div className="mt-3 rounded-3xl bg-white p-3"><div className="grid gap-2"><input className="input" placeholder={tx.school} value={draft.school || ""} onChange={(e) => setDraft({ ...draft, school: e.target.value })} /><input className="input" placeholder={tx.taskType} value={draft.title || ""} onChange={(e) => setDraft({ ...draft, title: e.target.value, type: e.target.value, taskText: e.target.value })} /><textarea className="input min-h-[80px]" placeholder={tx.notes} value={draft.notes || ""} onChange={(e) => setDraft({ ...draft, notes: e.target.value })} /><div className="grid grid-cols-2 gap-2"><input className="input" type="date" value={draft.dueDate || todayValue()} onChange={(e) => setDraft({ ...draft, dueDate: e.target.value })} /><input className="input" type="time" value={draft.dueTime || ""} onChange={(e) => setDraft({ ...draft, dueTime: e.target.value })} /></div><div className="grid grid-cols-2 gap-2">{PRIORITIES.map((priority) => <button key={priority.value} className={"priority-choice priority-" + priority.value + (draft.priority === priority.value ? " selected" : "")} onClick={() => setDraft({ ...draft, priority: priority.value })}>{priorityLabel(priority.value, tx)}</button>)}</div>{error && <p className="text-xs font-bold text-red-600">{error}</p>}<div className="grid grid-cols-2 gap-2"><button className="btn primary" onClick={save}><Fa icon={faFloppyDisk} /> <span>{tx.updateTask}</span></button><button className="btn soft" onClick={close}><Fa icon={faXmark} /> <span>{tx.dismiss}</span></button></div></div></div>;
 }
 
 function TaskCard({ tx, optionSets, task, noteMap, toggle, update, remove, openNote }) {
@@ -3518,12 +3555,12 @@ function TaskCard({ tx, optionSets, task, noteMap, toggle, update, remove, openN
   return <div className={taskCardClass(task)}><div className="flex gap-2"><button className={"h-6 w-6 rounded-full border text-xs " + (task.completed ? "bg-green-600 text-white" : "")} onClick={() => toggle(task.id)}><Fa icon={faCheck} /></button><div className="min-w-0 flex-1"><b className={task.completed ? "line-through muted" : ""}>{task.title}</b><div className="text-xs muted">{task.school} - {task.type}</div><Pill warn={taskPriority(task) === "urgent"}>{priorityLabel(taskPriority(task), tx)} - {task.dueDate} - {task.dueTime}</Pill>{task.notes ? <p className="mt-2 whitespace-pre-wrap text-xs muted">{task.notes}</p> : null}{linkedNote && <div><button className="btn soft mt-2" onClick={() => openNote(task.linkedNoteId)}><Fa icon={faNoteSticky} /> <span>{tx.goToNote}</span></button></div>}</div><div className="flex flex-col gap-1"><button title={tx.editTask} onClick={() => setEditing(!editing)}><Fa icon={faPenToSquare} /></button><button onClick={() => remove(task.id)}><Fa icon={faTrashCan} /></button></div></div>{editing && <TaskEditPanel tx={tx} optionSets={optionSets} task={task} update={update} close={() => setEditing(false)} />}</div>;
 }
 
-function Tasks({ tx, optionSets, live, closed, form, setForm, add, update, toggle, remove, notes, openNote, totals, salesSummary, meetings, calls, levelUps, sectionOrder, setSectionOrder }) {
+function Tasks({ tx, optionSets, live, closed, form, setForm, add, update, toggle, remove, notes, openNote, totals, salesSummary, meetings, calls, levelUps, sectionOrder, setSectionOrder, showToast }) {
   const noteMap = Object.fromEntries(notes.map((n) => [n.id, n]));
   const copyTasks = () => {
     const additions = prompt(tx.additionsOther, "") || "";
     const message = dailySummaryMessage({ tx, totals, salesSummary, meetings, calls, levelUps, additions });
-    copyToClipboard(message).then(() => alert(tx.copiedTasks));
+    copyToClipboard(message).then(() => showToast(tx.copiedTasks, "success"));
   };
   const renderCard = (task) => <TaskCard key={task.id} tx={tx} optionSets={optionSets} task={task} noteMap={noteMap} toggle={toggle} update={update} remove={remove} openNote={openNote} />;
   const taskActions = <section className="panel shadow-card p-3"><button className="btn primary w-full" onClick={copyTasks}><Fa icon={faCopy} /> <span>{tx.copyDailySummary}</span></button></section>;
@@ -3563,7 +3600,7 @@ function CalendarPlannerPreview({ tx, draftMeeting, setDraftMeeting }) {
   );
 }
 
-function Notes({ tx, optionSets, integrations, featureFlags, openIntegrationSettings, notes, notesToSelf, selfNoteText, setSelfNoteText, addSelfNote, removeSelfNote, tasks, form, setForm, addNote, remove, toggleTask, sectionOrder, setSectionOrder }) {
+function Notes({ tx, optionSets, integrations, featureFlags, openIntegrationSettings, notes, notesToSelf, selfNoteText, setSelfNoteText, addSelfNote, removeSelfNote, tasks, form, setForm, addNote, remove, toggleTask, sectionOrder, setSectionOrder, showToast }) {
   const taskById = Object.fromEntries(tasks.map((task) => [task.id, task]));
   const [showTask, setShowTask] = useState(false);
   const [showFollowUp, setShowFollowUp] = useState(false);
@@ -3576,23 +3613,23 @@ function Notes({ tx, optionSets, integrations, featureFlags, openIntegrationSett
   const canPlanWithCalendar = canUseCalendarPlanner(integrations, featureFlags);
   const addDraftTask = () => {
     const title = taskTitleFromForm(draftTask, tx);
-    if (!title || !draftTask.dueDate || !draftTask.dueTime) return alert(tx.requiredTask);
+    if (!title || !draftTask.dueDate || !draftTask.dueTime) { showToast(tx.requiredTask, "error"); return; }
     setDraftTasks((current) => [{ ...draftTask, id: uid(), title, taskText: title, type: title, notes: draftTask.notes || "", priority: draftTask.priority || "normal", urgent: draftTask.priority === "urgent" }, ...current]);
     setDraftTask({ taskText: "", type: "", notes: "", dueDate: todayValue(), dueTime: "", priority: "normal", urgent: false });
   };
   const addDraftMeeting = () => {
-    if (!form.school.trim() || !draftMeeting.type || !draftMeeting.date || !draftMeeting.time) return alert(tx.required);
+    if (!form.school.trim() || !draftMeeting.type || !draftMeeting.date || !draftMeeting.time) { showToast(tx.required, "error"); return; }
     const normal = normalizeMeeting({ ...draftMeeting, id: uid(), source: plannerMode === "calendar" ? "calendar_slot" : "manual", calendarReadStatus: canPlanWithCalendar ? "available_when_selected" : "not_connected" }, 0);
     setDraftMeetings((current) => [normal, ...current]);
     setDraftMeeting({ type: firstOptionLabel(optionSets, "meetingTypes"), date: todayValue(), time: "", durationMinutes: 30, teamsInviteSent: false, doNotAddToKpis: false, source: "manual" });
   };
   const addDraftFollowUpEmail = () => {
-    if (!form.school.trim()) return alert(tx.required);
+    if (!form.school.trim()) { showToast(tx.required, "error"); return; }
     const linkedMeeting = draftMeetings[0];
     setDraftTasks((current) => [{ id: uid(), title: followUpEmailTitle(form.school.trim()), taskText: followUpEmailTitle(form.school.trim()), type: tx.followUpEmail, notes: "", dueDate: todayValue(), dueTime: "16:30", priority: "normal", urgent: false, followUpEmail: true, autoFollowUpMeetingId: linkedMeeting ? linkedMeeting.id : "" }, ...current]);
   };
   const addDraftLevelUp = () => {
-    if (!form.school.trim()) return alert(tx.required);
+    if (!form.school.trim()) { showToast(tx.required, "error"); return; }
     setDraftLevelUps((current) => [{ id: uid(), onlineForm: "Pending", careerSite: "Pending" }, ...current]);
   };
   const save = (kind) => {
