@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { createUserWithEmailAndPassword, onAuthStateChanged, sendPasswordResetEmail, signInWithEmailAndPassword, signInWithPopup, signOut, updateProfile } from "firebase/auth";
 import { getDoc, serverTimestamp, setDoc } from "firebase/firestore";
@@ -157,6 +157,17 @@ const PRIORITIES = [
   { value: "urgent", label: "Urgent", color: "red" },
 ];
 const OPPORTUNITY_STATUSES = ["pending", "won", "lost"];
+const CONTACT_STATUSES = ["No Contact", "Contact Made"];
+const EMAIL_STATUSES = ["Not Sent", "Sent", "Replied"];
+const CALL_STATUSES = ["Not Called", "No Answer", "Spoke"];
+const LOST_REASONS = [
+  "No Response",
+  "Budget Not Available",
+  "Went with Competitor",
+  "Timing Not Right",
+  "Internal Decision / Pulled Role",
+  "Other",
+];
 const DEFAULT_FOCUS_SCHEDULE = [
   { id: "focus-call-1", start: "09:00", end: "10:30", label: "Call Time" },
   { id: "focus-admin-1", start: "10:30", end: "11:00", label: "Admin / Follow-ups" },
@@ -171,6 +182,7 @@ const DEFAULT_FOCUS_SCHEDULE = [
 const copy = {
   en: {
     app: "eTeach Smart Dashboard",
+    dashboardTitle: "Smart Dashboard",
     welcomeTitle: "Welcome to Smart Dashboard",
     welcomeBody: "Sign in to open your private dashboard.",
     email: "Email",
@@ -295,6 +307,37 @@ const copy = {
     opportunityValue: "Opportunity value (£)",
     dateCreated: "Date created",
     dateWon: "Date won",
+    closedDate: "Closed date",
+    endDate: "End date",
+    inProgressOpportunities: "In Progress Opportunities",
+    wonOpportunities: "Won Opportunities",
+    lostOpportunities: "Lost Opportunities",
+    contactStatus: "Contact Status",
+    emailStatus: "Email Status",
+    callStatus: "Call Status",
+    lastActivity: "Last Activity",
+    suggestedAction: "Suggested Action",
+    markAsWon: "Mark as Won",
+    markAsLost: "Mark as Lost",
+    reopenOpportunity: "Reopen Opportunity",
+    lostReason: "Lost reason",
+    otherLostReason: "Other lost reason",
+    pastDeadline: "Past Deadline",
+    endsToday: "Ends today",
+    endsInDays: "Ends in",
+    days: "days",
+    noContact: "No Contact",
+    contactMade: "Contact Made",
+    notSent: "Not Sent",
+    sent: "Sent",
+    notCalled: "Not Called",
+    noAnswer: "No Answer",
+    spoke: "Spoke",
+    startOutreach: "Start Outreach",
+    chaseContact: "Chase Contact",
+    followUp: "Follow Up",
+    closingWindow: "Closing Window",
+    reviewOpportunity: "Review Opportunity",
     lost: "Lost",
     totalSalesValue: "Total Sales Value",
     totalCommission: "Total Commission",
@@ -355,6 +398,11 @@ const copy = {
     googleSignInFailed: "Google sign-in failed:",
     cloudLoadFailed: "Could not load cloud save. Local offline data is still available.",
     cloudSaveFailed: "Could not save to cloud. Use Backup for an offline copy.",
+    offlinePromptTitle: "Connection lost",
+    offlinePromptBody: "The app could not save online. Would you like to save these changes offline on this device?",
+    saveOffline: "Save Offline",
+    offlineChangesPending: "Offline changes pending sync.",
+    unsavedChangesWarning: "Changes are on screen but may not be safely saved yet.",
     signInFailed: "Sign in failed:",
     createAccountFailed: "Could not create account:",
     resetPasswordFailed: "Could not send password reset:",
@@ -364,9 +412,11 @@ const copy = {
     meetingReminder: "Meeting reminder",
     meetingDue: "Meeting due within 15 minutes",
     dismiss: "Dismiss",
+    cancel: "Cancel",
   },
   cy: {
     app: "eTeach Smart Dashboard",
+    dashboardTitle: "Smart Dashboard",
     welcomeTitle: "Croeso i Smart Dashboard",
     welcomeBody: "Mewngofnodwch i agor eich dangosfwrdd preifat.",
     email: "E-bost",
@@ -491,6 +541,37 @@ const copy = {
     opportunityValue: "Gwerth y cyfle (£)",
     dateCreated: "Dyddiad creu",
     dateWon: "Dyddiad ennill",
+    closedDate: "Dyddiad cau",
+    endDate: "Dyddiad gorffen",
+    inProgressOpportunities: "Cyfleoedd ar Waith",
+    wonOpportunities: "Cyfleoedd Wedi'u Hennill",
+    lostOpportunities: "Cyfleoedd Wedi'u Colli",
+    contactStatus: "Statws Cyswllt",
+    emailStatus: "Statws E-bost",
+    callStatus: "Statws Galwad",
+    lastActivity: "Gweithgaredd Diwethaf",
+    suggestedAction: "Cam Awgrymedig",
+    markAsWon: "Marcio fel Wedi Ennill",
+    markAsLost: "Marcio fel Wedi Colli",
+    reopenOpportunity: "Ailagor Cyfle",
+    lostReason: "Rheswm colli",
+    otherLostReason: "Rheswm arall",
+    pastDeadline: "Wedi mynd heibio'r dyddiad",
+    endsToday: "Yn dod i ben heddiw",
+    endsInDays: "Yn dod i ben mewn",
+    days: "diwrnod",
+    noContact: "Dim Cyswllt",
+    contactMade: "Cyswllt Wedi'i Wneud",
+    notSent: "Heb Anfon",
+    sent: "Anfonwyd",
+    notCalled: "Heb Alw",
+    noAnswer: "Dim Ateb",
+    spoke: "Wedi Siarad",
+    startOutreach: "Dechrau Cyswllt",
+    chaseContact: "Dilyn Cyswllt",
+    followUp: "Dilyn i Fyny",
+    closingWindow: "Ffenestr Cau",
+    reviewOpportunity: "Adolygu Cyfle",
     lost: "Ar goll",
     totalSalesValue: "Cyfanswm Gwerthiant",
     totalCommission: "Cyfanswm Comisiwn",
@@ -551,6 +632,11 @@ const copy = {
     googleSignInFailed: "Methodd mewngofnodi Google:",
     cloudLoadFailed: "Methu llwytho cadw cwmwl. Mae data all-lein lleol dal ar gael.",
     cloudSaveFailed: "Methu cadw i'r cwmwl. Defnyddiwch Gopi wrth gefn ar gyfer copi all-lein.",
+    offlinePromptTitle: "Collwyd cysylltiad",
+    offlinePromptBody: "Ni allai'r ap gadw ar-lein. Hoffech chi gadw'r newidiadau hyn all-lein ar y ddyfais hon?",
+    saveOffline: "Cadw All-lein",
+    offlineChangesPending: "Newidiadau all-lein yn aros i gysoni.",
+    unsavedChangesWarning: "Mae newidiadau ar y sgrin ond efallai nad ydynt wedi'u cadw'n ddiogel eto.",
     signInFailed: "Methodd mewngofnodi:",
     createAccountFailed: "Methu creu cyfrif:",
     resetPasswordFailed: "Methu anfon ailosod cyfrinair:",
@@ -560,6 +646,7 @@ const copy = {
     meetingReminder: "Atgoffa cyfarfod",
     meetingDue: "Cyfarfod o fewn 15 munud",
     dismiss: "Cau",
+    cancel: "Canslo",
   },
 };
 
@@ -797,8 +884,8 @@ function dailySummaryMessage({ tx, totals, salesSummary, meetings, calls, levelU
 
 function statusClass(value) {
   const v = String(value || "").toLowerCase();
-  if (["live", "won", "yes", "email sent", "meeting booked"].includes(v)) return "status-pill status-live";
-  if (["pending", "to action", "no", "voicemail", "no answer"].includes(v)) return "status-pill status-pending";
+  if (["live", "won", "yes", "email sent", "meeting booked", "contact made", "sent", "replied", "spoke"].includes(v)) return "status-pill status-live";
+  if (["pending", "to action", "no", "voicemail", "no answer", "no contact", "not sent", "not called"].includes(v)) return "status-pill status-pending";
   if (["lost"].includes(v)) return "status-pill status-lost";
   return "status-pill status-neutral";
 }
@@ -827,6 +914,37 @@ function opportunityStatusLabel(value, tx) {
 
 function formatMoney(value) {
   return "£" + Number(value || 0).toLocaleString("en-GB", { maximumFractionDigits: 2 });
+}
+
+function daysBetweenDates(startDate, endDate) {
+  const start = parseDay(startDate);
+  const end = parseDay(endDate);
+  return Math.round((end.getTime() - start.getTime()) / 86400000);
+}
+
+function opportunityDeadlineLabel(opp, tx) {
+  const days = daysBetweenDates(todayValue(), opp.endDate || opp.date);
+  if (days < 0) return tx.pastDeadline;
+  if (days === 0) return tx.endsToday;
+  return `${tx.endsInDays} ${days} ${tx.days}`;
+}
+
+function opportunityLastActivity(opp, tx) {
+  if (!opp.lastActivityAt || !opp.lastActivityType) return `${tx.lastActivity}: None`;
+  const activityDate = String(opp.lastActivityAt).slice(0, 10);
+  const activityTime = new Intl.DateTimeFormat("en-GB", { hour: "2-digit", minute: "2-digit" }).format(new Date(opp.lastActivityAt));
+  const today = todayValue();
+  const yesterday = dateValue(new Date(parseDay(today).setDate(parseDay(today).getDate() - 1)));
+  const when = activityDate === today ? `Today ${activityTime}` : activityDate === yesterday ? "Yesterday" : fmtDate(activityDate);
+  return `${tx.lastActivity}: ${opp.lastActivityType} - ${when}`;
+}
+
+function opportunitySuggestedAction(opp, tx) {
+  const deadline = daysBetweenDates(todayValue(), opp.endDate || opp.date);
+  if (deadline < 0) return tx.reviewOpportunity;
+  if (opp.contactStatus === "No Contact") return opp.lastActivityAt ? tx.chaseContact : tx.startOutreach;
+  if (deadline <= 3) return tx.closingWindow;
+  return tx.followUp;
 }
 
 function affectsKpis(record) {
@@ -1137,6 +1255,9 @@ function normalizeOpportunity(value, index) {
   const legacyStatus = OPPORTUNITY_STATUSES.includes(String(value.status || "").toLowerCase()) ? safeText(value.legacyStatus) : safeText(value.status);
   const status = normalizeOpportunityStatus(value.status || value.success);
   const name = safeText(value.name || value.opportunityName || value.jobTitle || opportunityType, opportunityType);
+  const date = safeDate(value.date || createdAt);
+  const wonDate = status === "won" ? safeDate(value.wonDate || value.closedDate || value.dateWon || value.date || createdAt) : "";
+  const closedDate = status === "won" || status === "lost" ? safeDate(value.closedDate || value.wonDate || value.lostDate || value.date || createdAt) : "";
   return {
     ...value,
     id: withId(value, "opportunity", index),
@@ -1150,8 +1271,17 @@ function normalizeOpportunity(value, index) {
     reply: safeText(value.reply, firstOptionLabel(DEFAULT_OPTION_SETS, "opportunityReplies")),
     success: status === "won" ? "Won" : status === "lost" ? "Lost" : "Pending",
     value: safeNumber(value.value, 0),
-    date: safeDate(value.date || createdAt),
-    wonDate: status === "won" ? safeDate(value.wonDate || value.dateWon || value.date || createdAt) : "",
+    date,
+    endDate: safeDate(value.endDate || value.deadline || date),
+    contactStatus: asChoice(value.contactStatus, CONTACT_STATUSES, safeBool(value.contactMade) ? "Contact Made" : "No Contact"),
+    emailStatus: asChoice(value.emailStatus, EMAIL_STATUSES, value.legacyStatus === "Email Sent" ? "Sent" : "Not Sent"),
+    callStatus: asChoice(value.callStatus, CALL_STATUSES, "Not Called"),
+    lostReason: safeText(value.lostReason),
+    lostReasonOther: safeText(value.lostReasonOther),
+    closedDate,
+    wonDate,
+    lastActivityType: safeText(value.lastActivityType),
+    lastActivityAt: value.lastActivityAt ? safeIso(value.lastActivityAt) : "",
     createdAt,
   };
 }
@@ -1405,7 +1535,12 @@ export default function OfflineKpiTracker() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [firebaseUser, setFirebaseUser] = useState(null);
   const [authReady, setAuthReady] = useState(false);
+  const [cloudLoaded, setCloudLoaded] = useState(false);
   const [cloudStatus, setCloudStatus] = useState("");
+  const [offlinePrompt, setOfflinePrompt] = useState(false);
+  const [offlineChangesPending, setOfflineChangesPending] = useState(false);
+  const [onlineTick, setOnlineTick] = useState(0);
+  const autosaveReady = useRef(false);
   const [theme, setTheme] = useState(() => cleanTheme(initialData.theme));
   const [optionSets, setOptionSets] = useState(() => cleanOptionSets(initialData.optionSets));
   const [focusSchedule, setFocusSchedule] = useState(() => cleanFocusSchedule(initialData.focusSchedule));
@@ -1421,28 +1556,29 @@ export default function OfflineKpiTracker() {
   const [dismissed, setDismissed] = useState({});
 
   const [meetingForm, setMeetingForm] = useState({ school: "", contactName: "", type: firstOptionLabel(optionSets, "meetingTypes"), date: selectedDate, time: "", notes: "", teamsInviteSent: false, doNotAddToKpis: false });
-  const [oppForm, setOppForm] = useState({ school: "", name: "", opportunityType: firstOptionLabel(optionSets, "opportunityTypes"), value: "" });
+  const [oppForm, setOppForm] = useState({ school: "", name: "", opportunityType: firstOptionLabel(optionSets, "opportunityTypes"), value: "", endDate: selectedDate });
   const [callForm, setCallForm] = useState({ school: "", reason: firstOptionLabel(optionSets, "callReasons"), outcome: firstOptionLabel(optionSets, "callOutcomes"), notes: "", doNotAddToKpis: false });
   const [levelUpForm, setLevelUpForm] = useState({ school: "" });
-  const [taskForm, setTaskForm] = useState({ school: "", type: firstOptionLabel(optionSets, "taskTypes"), otherTitle: "", notes: "", dueDate: today, dueTime: "", priority: "normal", urgent: false });
+  const [taskForm, setTaskForm] = useState({ school: "", type: firstOptionLabel(optionSets, "taskTypes"), otherTitle: "", notes: "", dueDate: selectedDate, dueTime: "", priority: "normal", urgent: false });
   const [noteForm, setNoteForm] = useState({ school: "", notes: "" });
   const [selfNoteText, setSelfNoteText] = useState("");
 
   const period = useMemo(() => getPeriod(view, selectedDate), [view, selectedDate]);
   const periodMeetings = useMemo(() => sortMeetings(meetings.filter((m) => isScheduledMeeting(m) && inPeriod(m.date, period))), [meetings, period]);
   const periodBookedMeetings = useMemo(() => meetings.filter((m) => isBookedMeetingRecord(m) && inPeriod(String(m.createdAt || m.date || "").slice(0, 10), period)), [meetings, period]);
-  const meetingsTodayDate = view === "day" ? selectedDate : today;
+  const meetingsTodayDate = today;
   const todayMeetings = useMemo(() => sortTodayMeetings(meetings.filter((m) => isScheduledMeeting(m) && m.date === meetingsTodayDate)), [meetings, meetingsTodayDate]);
   const periodCreatedOpps = useMemo(() => opportunities.filter((o) => inPeriod(o.date, period)), [opportunities, period]);
-  const periodWonOpps = useMemo(() => opportunities.filter((o) => isWonOpportunity(o) && inPeriod(o.wonDate || o.date, period)), [opportunities, period]);
+  const periodWonOpps = useMemo(() => opportunities.filter((o) => isWonOpportunity(o) && inPeriod(o.closedDate || o.wonDate || o.date, period)), [opportunities, period]);
   const periodOpps = useMemo(() => {
     const ids = new Set();
-    return [...periodCreatedOpps, ...periodWonOpps].filter((opp) => {
+    const periodClosedOpps = opportunities.filter((o) => o.closedDate && inPeriod(o.closedDate, period));
+    return [...periodCreatedOpps, ...periodWonOpps, ...periodClosedOpps].filter((opp) => {
       if (ids.has(opp.id)) return false;
       ids.add(opp.id);
       return true;
     });
-  }, [periodCreatedOpps, periodWonOpps]);
+  }, [opportunities, period, periodCreatedOpps, periodWonOpps]);
   const periodCalls = useMemo(() => calls.filter((c) => inPeriod(c.date, period)), [calls, period]);
   const periodLevelUps = useMemo(() => levelUps.filter((item) => inPeriod(item.date || String(item.createdAt || "").slice(0, 10), period)), [levelUps, period]);
   const periodNotes = useMemo(() => sortNotes(notes.filter((n) => inPeriod(String(n.createdAt || "").slice(0, 10), period))), [notes, period]);
@@ -1540,22 +1676,42 @@ export default function OfflineKpiTracker() {
   const currentData = (savedAt = new Date().toISOString()) => normalizeAppState({ version: APP_STATE_VERSION, language, profileName, selectedDate, view, tab, theme, optionSets, focusSchedule, meetings, opportunities, calls, levelUps, adjustments, tasks, notes, notesToSelf, savedAt });
 
   useEffect(() => {
-    try {
-      writeStoredData({ version: APP_STATE_VERSION, language, profileName, selectedDate, view, tab, theme, optionSets, focusSchedule, meetings, opportunities, calls, levelUps, adjustments, tasks, notes, notesToSelf, savedAt: new Date().toISOString() });
-    } catch {
-      return;
+    const saved = writeStoredData(currentData());
+    setLastSaved(formatSaveTime(saved.savedAt));
+    if (!autosaveReady.current) {
+      autosaveReady.current = true;
+      return undefined;
     }
-  }, [language, profileName, selectedDate, view, tab, theme, optionSets, focusSchedule, meetings, opportunities, calls, levelUps, adjustments, tasks, notes, notesToSelf]);
+    if (!firebaseUser || !authReady || !cloudLoaded) return undefined;
+    const timer = window.setTimeout(async () => {
+      if (!browserOnline()) {
+        setOfflinePrompt(true);
+        setCloudStatus(tx.unsavedChangesWarning);
+        return;
+      }
+      try {
+        await setDoc(trackerDoc(firebaseUser.uid), { state: saved, updatedAt: serverTimestamp() }, { merge: true });
+        setCloudStatus(tx.savedCloud);
+        setOfflineChangesPending(false);
+      } catch {
+        setOfflinePrompt(true);
+        setCloudStatus(tx.unsavedChangesWarning);
+      }
+    }, 650);
+    return () => window.clearTimeout(timer);
+  }, [language, profileName, selectedDate, view, tab, theme, optionSets, focusSchedule, meetings, opportunities, calls, levelUps, adjustments, tasks, notes, notesToSelf, firebaseUser, authReady, cloudLoaded, tx]);
 
   useEffect(() => onAuthStateChanged(auth, async (user) => {
     setFirebaseUser(user);
     setCloudStatus("");
+    setCloudLoaded(false);
     if (!user) {
       setAuthReady(true);
       return;
     }
     if (!browserOnline()) {
       setAuthReady(true);
+      setCloudLoaded(true);
       return;
     }
     try {
@@ -1567,6 +1723,7 @@ export default function OfflineKpiTracker() {
         ? normalizeAppState({ ...(data.state || data), profileName: firstNameFromValue((data.state && data.state.profileName) || fallbackName) })
         : normalizeAppState({ profileName: fallbackName, savedAt: new Date().toISOString() });
       writeStoredData(saved);
+      autosaveReady.current = false;
       applySavedState(saved);
       if (!snap.exists()) {
         await setDoc(trackerDoc(user.uid), {
@@ -1579,9 +1736,31 @@ export default function OfflineKpiTracker() {
     } catch {
       setCloudStatus(copy.en.cloudLoadFailed);
     } finally {
+      setCloudLoaded(true);
       setAuthReady(true);
     }
   }), [applySavedState]);
+
+  useEffect(() => {
+    const ping = () => setOnlineTick((tick) => tick + 1);
+    window.addEventListener("online", ping);
+    return () => window.removeEventListener("online", ping);
+  }, []);
+
+  useEffect(() => {
+    if (!offlineChangesPending || !firebaseUser || !browserOnline()) return undefined;
+    const timer = window.setTimeout(async () => {
+      const saved = writeStoredData(currentData());
+      try {
+        await setDoc(trackerDoc(firebaseUser.uid), { state: saved, updatedAt: serverTimestamp() }, { merge: true });
+        setOfflineChangesPending(false);
+        setCloudStatus(tx.savedCloud);
+      } catch {
+        setOfflinePrompt(true);
+      }
+    }, 500);
+    return () => window.clearTimeout(timer);
+  }, [offlineChangesPending, firebaseUser, onlineTick, tx]);
 
   const required = (values) => {
     if (values.some((value) => !String(value || "").trim())) {
@@ -1606,9 +1785,9 @@ export default function OfflineKpiTracker() {
 
   const addOpportunity = () => {
     if (!required([oppForm.school, oppForm.name, oppForm.opportunityType])) return;
-    const opportunity = normalizeOpportunity({ id: uid(), school: oppForm.school.trim(), name: oppForm.name.trim(), opportunityName: oppForm.name.trim(), opportunityType: oppForm.opportunityType, jobTitle: oppForm.opportunityType, status: "pending", value: safeNumber(oppForm.value, 0), date: selectedDate, createdAt: new Date().toISOString() }, 0);
+    const opportunity = normalizeOpportunity({ id: uid(), school: oppForm.school.trim(), name: oppForm.name.trim(), opportunityName: oppForm.name.trim(), opportunityType: oppForm.opportunityType, jobTitle: oppForm.opportunityType, status: "pending", value: safeNumber(oppForm.value, 0), date: selectedDate, endDate: oppForm.endDate || selectedDate, contactStatus: "No Contact", emailStatus: "Not Sent", callStatus: "Not Called", createdAt: new Date().toISOString() }, 0);
     setOpportunities((current) => [opportunity, ...current]);
-    setOppForm({ school: "", name: "", opportunityType: firstOptionLabel(optionSets, "opportunityTypes"), value: "" });
+    setOppForm({ school: "", name: "", opportunityType: firstOptionLabel(optionSets, "opportunityTypes"), value: "", endDate: selectedDate });
   };
 
   const addCall = () => {
@@ -1635,7 +1814,7 @@ export default function OfflineKpiTracker() {
     const stamp = new Date().toISOString();
     const task = normalizeTask({ id: uid(), title, school: taskForm.school.trim(), type: taskForm.type, notes: taskForm.notes || "", dueDate: taskForm.dueDate, dueTime: taskForm.dueTime, priority: taskForm.priority || "normal", urgent: taskForm.priority === "urgent", completed, status: completed ? "closed" : "open", completedAt: completed ? stamp : null, createdAt: stamp }, 0);
     setTasks((current) => [task, ...current]);
-    setTaskForm({ school: "", type: firstOptionLabel(optionSets, "taskTypes"), otherTitle: "", notes: "", dueDate: today, dueTime: "", priority: "normal", urgent: false });
+    setTaskForm({ school: "", type: firstOptionLabel(optionSets, "taskTypes"), otherTitle: "", notes: "", dueDate: selectedDate, dueTime: "", priority: "normal", urgent: false });
   };
 
   const updateTask = (id, patch) => {
@@ -1690,9 +1869,36 @@ export default function OfflineKpiTracker() {
   const updateOpp = (id, patch) => {
     setOpportunities((current) => current.map((opp) => {
       if (opp.id !== id) return opp;
+      const stamp = new Date().toISOString();
       const next = typeof patch === "string" ? { ...opp, status: cycleLabel(optionSets, "opportunitySuccesses", opp.status) } : { ...opp, ...patch };
-      if (patch.status === "won" && !next.wonDate) next.wonDate = selectedDate;
-      if (patch.status && patch.status !== "won") next.wonDate = "";
+      if (patch.emailStatus && patch.emailStatus !== opp.emailStatus) {
+        next.lastActivityType = "Email";
+        next.lastActivityAt = stamp;
+      }
+      if (patch.callStatus && patch.callStatus !== opp.callStatus) {
+        next.lastActivityType = "Call";
+        next.lastActivityAt = stamp;
+      }
+      if (patch.contactStatus && patch.contactStatus !== opp.contactStatus && !next.lastActivityAt) {
+        next.lastActivityType = "Contact";
+        next.lastActivityAt = stamp;
+      }
+      if (patch.status === "won") {
+        next.wonDate = todayValue();
+        next.closedDate = todayValue();
+        next.lostReason = "";
+        next.lostReasonOther = "";
+      }
+      if (patch.status === "lost") {
+        next.closedDate = todayValue();
+        next.wonDate = "";
+      }
+      if (patch.status === "pending") {
+        next.closedDate = "";
+        next.wonDate = "";
+        next.lostReason = "";
+        next.lostReasonOther = "";
+      }
       return normalizeOpportunity(next, 0);
     }));
   };
@@ -1774,7 +1980,11 @@ export default function OfflineKpiTracker() {
   const saveNow = async () => {
     const saved = writeStoredData(currentData());
     setLastSaved(formatSaveTime(saved.savedAt));
-    if (!browserOnline()) return alert(tx.offlineSaveBlocked);
+    if (!browserOnline()) {
+      setOfflinePrompt(true);
+      setCloudStatus(tx.unsavedChangesWarning);
+      return;
+    }
     const user = firebaseUser || await signInGoogle();
     if (!user) return;
     try {
@@ -1782,7 +1992,8 @@ export default function OfflineKpiTracker() {
       setCloudStatus(tx.savedCloud);
       alert(tx.savedCloud);
     } catch {
-      alert(tx.cloudSaveFailed);
+      setOfflinePrompt(true);
+      setCloudStatus(tx.unsavedChangesWarning);
     }
   };
 
@@ -1823,6 +2034,18 @@ export default function OfflineKpiTracker() {
     popup.print();
   };
 
+  const saveOfflineFromPrompt = () => {
+    writeStoredData(currentData());
+    setOfflineChangesPending(true);
+    setOfflinePrompt(false);
+    setCloudStatus(tx.offlineChangesPending);
+  };
+
+  const cancelOfflinePrompt = () => {
+    setOfflinePrompt(false);
+    setCloudStatus(tx.unsavedChangesWarning);
+  };
+
   if (!authReady) {
     return <div className="app-shell auth-page min-h-screen" style={themeStyle(theme)}><div className="app-bg fixed inset-0 -z-10" /><div className="auth-shell panel shadow-card"><p className="brand text-center">{tx.authLoading}</p></div></div>;
   }
@@ -1837,6 +2060,7 @@ export default function OfflineKpiTracker() {
       <div className="mx-auto max-w-[1500px]">
         <Header tx={tx} language={language} profileName={profileName} firebaseUser={firebaseUser} cloudStatus={cloudStatus} signInGoogle={signInGoogle} signOutGoogle={signOutGoogle} period={period} view={view} setView={setView} selectedDate={selectedDate} setSelectedDate={setSelectedDate} calendarOpen={calendarOpen} setCalendarOpen={setCalendarOpen} actionsOpen={actionsOpen} setActionsOpen={setActionsOpen} headerOpen={headerOpen} setHeaderOpen={setHeaderOpen} editTotals={editTotals} setEditTotals={setEditTotals} jump={jump} saveNow={saveNow} saveAs={saveAs} exportReport={exportReport} printReport={printReport} importBackup={importBackup} backup={() => download(cleanName(period.file) + " backup.json", JSON.stringify(currentData(), null, 2), "application/json;charset=utf-8")} reset={() => { if (confirm(tx.resetWarning)) { setMeetings([]); setOpportunities([]); setCalls([]); setLevelUps([]); setTasks([]); setNotes([]); setNotesToSelf([]); setAdjustments([]); setFocusSchedule(DEFAULT_FOCUS_SCHEDULE); } }} lastSaved={lastSaved} openSettings={() => setSettingsOpen(true)} />
 
+        {offlinePrompt && <OfflineSavePrompt tx={tx} saveOffline={saveOfflineFromPrompt} cancel={cancelOfflinePrompt} />}
         {settingsOpen && <Settings tx={tx} language={language} setLanguage={setLanguage} profileName={profileName} setProfileName={setProfileName} theme={theme} setTheme={setTheme} optionSets={optionSets} setOptionSets={setOptionSets} close={() => setSettingsOpen(false)} />}
         {meetingAlerts.length > 0 && <Reminder tx={tx} alerts={meetingAlerts} dismiss={() => setDismissed(Object.fromEntries(meetingAlerts.map((m) => [m.id, true])))} />}
         <CurrentFocus tx={tx} schedule={focusSchedule} setSchedule={setFocusSchedule} />
@@ -1879,8 +2103,9 @@ function AuthGate({ tx, signInEmail, createEmailAccount, resetPassword, signInGo
     <div className="app-shell auth-page min-h-screen">
       <div className="app-bg fixed inset-0 -z-10" />
       <main className="auth-shell panel shadow-card">
-        <img className="auth-logo" src={`${import.meta.env.BASE_URL}eteach-ios.png`} alt="" />
-        <p className="auth-kicker text-[11px] font-black uppercase">eTeach Smart Dashboard</p>
+        <div className="auth-logo-slot">
+          <img className="auth-brand-logo" src={`${import.meta.env.BASE_URL}eteach-logo.png`} alt="eTeach" />
+        </div>
         <h1 className="brand brand-text">{tx.welcomeTitle}</h1>
         <p className="muted">{tx.welcomeBody}</p>
         <form className="mt-4 grid gap-2" onSubmit={submit}>
@@ -1918,7 +2143,7 @@ function Header({ tx, language, profileName, firebaseUser, cloudStatus, signInGo
   if (!headerOpen) {
     return <header className="panel shadow-card mb-3 p-2"><div className="flex items-center justify-between gap-2"><button onClick={() => setHeaderOpen(true)} className="btn soft min-w-0 flex-1 truncate text-left"><Fa icon={faChevronDown} /> <span>{greetingFor(language, displayName)}</span></button>{firebaseUser ? <button className="btn soft" onClick={signOutGoogle}><Fa icon={faRightFromBracket} /></button> : <button className="btn primary" onClick={signInGoogle}><Fa icon={faRightToBracket} /></button>}<button className="btn soft" title={tx.settings} onClick={openSettings}><Fa icon={faGear} /> <span className="hidden sm:inline">{tx.settings}</span></button></div></header>;
   }
-  return <header className="panel shadow-card mb-3 p-3"><div className="flex items-center justify-between gap-2"><div className="min-w-0"><p className="text-[10px] font-black uppercase muted">{tx.app}</p><button onClick={() => setCalendarOpen(!calendarOpen)} className="brand truncate text-left text-lg brand-text sm:text-2xl"><Fa icon={faCalendarDays} className="mr-2 text-base" />{period.label}</button><div className="mt-1 text-[10px] font-black uppercase muted">{firebaseUser ? `${tx.signedInAs} ${displayName}` : tx.signInRequired}{cloudStatus ? ` - ${cloudStatus}` : ""}</div></div><div className="flex items-center gap-1"><span className="rounded-full bg-green-100 px-2 py-1 text-[10px] font-black text-green-700">{lastSaved}</span>{firebaseUser ? <button className="btn soft" onClick={signOutGoogle}><Fa icon={faRightFromBracket} /> <span className="hidden sm:inline">{tx.signOut}</span></button> : <button className="btn primary" onClick={signInGoogle}><Fa icon={faRightToBracket} /> <span className="hidden sm:inline">{tx.signInGoogle}</span></button>}<button className="btn soft" title={tx.collapseTop} onClick={() => setHeaderOpen(false)}><Fa icon={faChevronUp} /></button><button className="btn soft" title={tx.settings} onClick={openSettings}><Fa icon={faGear} /> <span className="hidden sm:inline">{tx.settings}</span></button></div></div><div className="mt-2 grid grid-cols-[38px_1fr_38px] gap-1"><button className="btn soft" onClick={() => jump(-1)}><Fa icon={faChevronLeft} /></button><div className="grid grid-cols-4 gap-1 rounded-2xl brand-soft p-1">{[["day", tx.day], ["week", tx.week], ["month", tx.month], ["ytd", tx.ytd]].map(([key, label]) => <button key={key} className={"btn " + (view === key ? "primary" : "")} onClick={() => setView(key)}>{label}</button>)}</div><button className="btn soft" onClick={() => jump(1)}><Fa icon={faChevronRight} /></button></div>{calendarOpen && <input className="input mt-2" type="date" value={selectedDate} onChange={(e) => setSelectedDate(e.target.value)} />}<button className="btn soft mt-2 w-full" onClick={() => setActionsOpen(!actionsOpen)}><Fa icon={actionsOpen ? faChevronUp : faChevronDown} /> <span>{actionsOpen ? tx.hideActions : tx.showActions}</span></button>{actionsOpen && <div className="mt-2 grid grid-cols-2 gap-1 sm:flex sm:flex-wrap"><button className="btn soft" onClick={() => setEditTotals(!editTotals)}><Fa icon={faPenToSquare} /> <span>{editTotals ? tx.done : tx.editTotals}</span></button><button className="btn primary" onClick={saveNow}><Fa icon={faFloppyDisk} /> <span>{tx.save}</span></button><button className="btn soft" onClick={saveAs}><Fa icon={faFileArrowDown} /> <span>{tx.saveAs}</span></button><button className="btn primary" onClick={exportReport}><Fa icon={faFileExport} /> <span>{tx.exportExcel}</span></button><button className="btn primary" onClick={printReport}><Fa icon={faFilePdf} /> <span>{tx.pdfPrint}</span></button><button className="btn soft" onClick={backup}><Fa icon={faFileArrowDown} /> <span>{tx.backup}</span></button><label className="btn soft text-center"><Fa icon={faFileArrowUp} /> <span>{tx.import}</span><input className="hidden" type="file" accept="application/json" onChange={importBackup} /></label><button className="btn soft text-red-700" onClick={reset}><Fa icon={faRotateLeft} /> <span>{tx.reset}</span></button></div>}</header>;
+  return <header className="panel shadow-card mb-3 p-3"><div className="dashboard-topline"><div className="min-w-0"><p className="text-[10px] font-black uppercase muted">{tx.dashboardTitle}</p><button onClick={() => setCalendarOpen(!calendarOpen)} className="brand truncate text-left text-lg brand-text sm:text-2xl"><Fa icon={faCalendarDays} className="mr-2 text-base" />{period.label}</button><div className="mt-1 text-[10px] font-black uppercase muted">{firebaseUser ? `${tx.signedInAs} ${displayName}` : tx.signInRequired}{cloudStatus ? ` - ${cloudStatus}` : ""}</div></div><div className="dashboard-actions"><span className="rounded-full bg-green-100 px-2 py-1 text-[10px] font-black text-green-700">{lastSaved}</span>{firebaseUser ? <button className="btn soft" onClick={signOutGoogle}><Fa icon={faRightFromBracket} /> <span className="hidden sm:inline">{tx.signOut}</span></button> : <button className="btn primary" onClick={signInGoogle}><Fa icon={faRightToBracket} /> <span className="hidden sm:inline">{tx.signInGoogle}</span></button>}<button className="btn soft" title={tx.collapseTop} onClick={() => setHeaderOpen(false)}><Fa icon={faChevronUp} /></button><button className="btn soft" title={tx.settings} onClick={openSettings}><Fa icon={faGear} /> <span className="hidden sm:inline">{tx.settings}</span></button></div></div><div className="mt-2 grid grid-cols-[38px_1fr_38px] gap-1"><button className="btn soft" onClick={() => jump(-1)}><Fa icon={faChevronLeft} /></button><div className="grid grid-cols-4 gap-1 rounded-2xl brand-soft p-1">{[["day", tx.day], ["week", tx.week], ["month", tx.month], ["ytd", tx.ytd]].map(([key, label]) => <button key={key} className={"btn " + (view === key ? "primary" : "")} onClick={() => setView(key)}>{label}</button>)}</div><button className="btn soft" onClick={() => jump(1)}><Fa icon={faChevronRight} /></button></div>{calendarOpen && <input className="input mt-2" type="date" value={selectedDate} onChange={(e) => setSelectedDate(e.target.value)} />}<button className="btn soft mt-2 w-full" onClick={() => setActionsOpen(!actionsOpen)}><Fa icon={actionsOpen ? faChevronUp : faChevronDown} /> <span>{actionsOpen ? tx.hideActions : tx.showActions}</span></button>{actionsOpen && <div className="mt-2 grid grid-cols-2 gap-1 sm:flex sm:flex-wrap"><button className="btn soft" onClick={() => setEditTotals(!editTotals)}><Fa icon={faPenToSquare} /> <span>{editTotals ? tx.done : tx.editTotals}</span></button><button className="btn primary" onClick={saveNow}><Fa icon={faFloppyDisk} /> <span>{tx.save}</span></button><button className="btn soft" onClick={saveAs}><Fa icon={faFileArrowDown} /> <span>{tx.saveAs}</span></button><button className="btn primary" onClick={exportReport}><Fa icon={faFileExport} /> <span>{tx.exportExcel}</span></button><button className="btn primary" onClick={printReport}><Fa icon={faFilePdf} /> <span>{tx.pdfPrint}</span></button><button className="btn soft" onClick={backup}><Fa icon={faFileArrowDown} /> <span>{tx.backup}</span></button><label className="btn soft text-center"><Fa icon={faFileArrowUp} /> <span>{tx.import}</span><input className="hidden" type="file" accept="application/json" onChange={importBackup} /></label><button className="btn soft text-red-700" onClick={reset}><Fa icon={faRotateLeft} /> <span>{tx.reset}</span></button></div>}</header>;
 }
 function RangeControl({ label, value, min, max, step = 1, suffix = "", onChange }) {
   return <label className="grid gap-1 text-xs font-black uppercase muted"><span className="flex justify-between"><span>{label}</span><span>{value}{suffix}</span></span><input type="range" min={min} max={max} step={step} value={value} onChange={(e) => onChange(Number(e.target.value))} /></label>;
@@ -1967,6 +2192,10 @@ function Settings({ tx, language, setLanguage, profileName, setProfileName, them
 
 function Reminder({ tx, alerts, dismiss }) {
   return <div className="fixed inset-0 z-40 grid place-items-center bg-black/35 p-4"><section className="w-full max-w-md animate-pulse rounded-3xl bg-orange-500 p-4 text-white shadow-2xl"><div className="flex justify-between gap-3"><div><p className="text-xs font-black uppercase"><Fa icon={faBell} /> {tx.meetingReminder}</p><h2 className="brand text-lg">{tx.meetingDue}</h2></div><button className="btn bg-white/20" onClick={dismiss}>{tx.dismiss}</button></div>{alerts.map((m) => <div key={m.id} className="mt-2 rounded-2xl bg-white p-3 brand-text"><b>{m.school}</b><div>{m.type} - {m.time}</div></div>)}</section></div>;
+}
+
+function OfflineSavePrompt({ tx, saveOffline, cancel }) {
+  return <div className="fixed inset-0 z-50 grid place-items-center bg-black/45 p-4"><section className="panel shadow-card w-full max-w-md p-4"><h2 className="brand brand-text">{tx.offlinePromptTitle}</h2><p className="mt-2 muted">{tx.offlinePromptBody}</p><div className="mt-4 grid grid-cols-2 gap-2"><button className="btn primary" onClick={saveOffline}>{tx.saveOffline}</button><button className="btn soft" onClick={cancel}>{tx.cancel}</button></div></section></div>;
 }
 
 function CurrentFocus({ tx, schedule, setSchedule }) {
@@ -2039,11 +2268,10 @@ function Kpis(props) {
   const [listsFirst, setListsFirst] = useState(false);
   const toggle = (name) => setOpenForm(openForm === name ? null : name);
   const actionClass = (name) => "btn w-full text-left " + (openForm === name ? "primary" : "soft");
-  const copyField = (value) => copyToClipboard(value || "").then(() => alert("Copied"));
 
   const kpiCards = <div className="grid grid-cols-2 gap-2">{KPI_FIELDS.map(([key, label]) => { const target = getKpiTarget(key, props.view, props.period); const value = props.totals[key] || 0; const status = getKpiStatus(value, target); return <div key={key} className={"kpi-box kpi-" + status + " shadow-card p-3"}><div className="text-[10px] font-black uppercase muted">{label}</div>{props.editTotals ? <KpiEditInput key={`${key}-${value}`} value={value} onCommit={(next) => props.setTotal(key, next)} /> : <button className="mt-2 w-full rounded-2xl bg-white/65 p-3 text-left text-3xl font-black brand-text" onClick={() => props.addAdj(key)}>{value}</button>}{target ? <div className="mt-2 text-[10px] font-black uppercase muted">Target {target}</div> : null}</div>; })}</div>;
   const quickAdd = <div className="panel shadow-card p-3"><h2 className="brand brand-text">{tx.quickAdd}</h2><div className="mt-3 grid gap-2"><button className={actionClass("meeting")} onClick={() => toggle("meeting")}><Fa icon={openForm === "meeting" ? faMinus : faCirclePlus} /> <span>{tx.addMeeting}</span></button>{openForm === "meeting" && <div className="rounded-3xl brand-soft p-3"><input className="input" placeholder={tx.school} value={props.meetingForm.school} onChange={(e) => props.setMeetingForm({ ...props.meetingForm, school: e.target.value })} /><input className="input mt-2" placeholder={tx.contactName} value={props.meetingForm.contactName || ""} onChange={(e) => props.setMeetingForm({ ...props.meetingForm, contactName: e.target.value })} /><select className="input mt-2" value={props.meetingForm.type} onChange={(e) => props.setMeetingForm({ ...props.meetingForm, type: e.target.value })}>{labelsFor(props.optionSets, "meetingTypes").map((x) => <option key={x}>{x}</option>)}</select><div className="mt-2 grid grid-cols-2 gap-2"><input className="input" type="date" value={props.meetingForm.date} onChange={(e) => props.setMeetingForm({ ...props.meetingForm, date: e.target.value })} /><input className="input" type="time" value={props.meetingForm.time} onChange={(e) => props.setMeetingForm({ ...props.meetingForm, time: e.target.value })} /></div><textarea className="input mt-2 min-h-[70px]" placeholder={tx.notes} value={props.meetingForm.notes || ""} onChange={(e) => props.setMeetingForm({ ...props.meetingForm, notes: e.target.value })} /><label className="mt-2 block rounded-2xl bg-white p-2 text-xs font-black"><input type="checkbox" checked={props.meetingForm.teamsInviteSent} onChange={(e) => props.setMeetingForm({ ...props.meetingForm, teamsInviteSent: e.target.checked })} /> {tx.teamsInviteSent}</label><label className="mt-2 block rounded-2xl bg-white p-2 text-xs font-black"><input type="checkbox" checked={Boolean(props.meetingForm.doNotAddToKpis)} onChange={(e) => props.setMeetingForm({ ...props.meetingForm, doNotAddToKpis: e.target.checked })} /> {tx.doNotAddToKpis}</label><button className="btn primary mt-2" onClick={props.addMeeting}><Fa icon={faCirclePlus} /> <span>{tx.addMeeting}</span></button></div>}<button className={actionClass("call")} onClick={() => toggle("call")}><Fa icon={openForm === "call" ? faMinus : faPhone} /> <span>{tx.addCall}</span></button>{openForm === "call" && <div className="rounded-3xl brand-soft p-3"><input className="input" placeholder={tx.school} value={props.callForm.school} onChange={(e) => props.setCallForm({ ...props.callForm, school: e.target.value })} /><select className="input mt-2" value={props.callForm.reason} onChange={(e) => props.setCallForm({ ...props.callForm, reason: e.target.value })}>{labelsFor(props.optionSets, "callReasons").map((x) => <option key={x}>{x}</option>)}</select><select className="input mt-2" value={props.callForm.outcome} onChange={(e) => props.setCallForm({ ...props.callForm, outcome: e.target.value })}>{labelsFor(props.optionSets, "callOutcomes").map((x) => <option key={x}>{x}</option>)}</select><textarea className="input mt-2 min-h-[90px]" placeholder={tx.notes} value={props.callForm.notes || ""} onChange={(e) => props.setCallForm({ ...props.callForm, notes: e.target.value })} /><label className="mt-2 block rounded-2xl bg-white p-2 text-xs font-black"><input type="checkbox" checked={Boolean(props.callForm.doNotAddToKpis)} onChange={(e) => props.setCallForm({ ...props.callForm, doNotAddToKpis: e.target.checked })} /> {tx.doNotAddToKpis}</label><button className="btn primary mt-2" onClick={props.addCall}><Fa icon={faPhone} /> <span>{tx.addCall}</span></button></div>}</div></div>;
-  const lists = <section className="grid gap-3 lg:grid-cols-2"><List title={tx.meetings} count={props.meetings.length}>{props.meetings.map((m) => <div className="panel p-3" key={m.id}><div className="flex justify-between"><div><b>{m.school}</b><div className="text-xs muted">{fmtDate(m.date)} - {m.time || tx.dueTime} - {m.type}</div></div><button onClick={() => props.removeMeeting(m.id)}><Fa icon={faTrashCan} /></button></div><button onClick={() => props.toggleInvite(m.id)}><Pill good={m.teamsInviteSent} warn={!m.teamsInviteSent}>{m.teamsInviteSent ? tx.teamsSent : tx.teamsNotSent}</Pill></button></div>)}</List><List title={tx.calls} count={props.calls.length}>{props.calls.map((c) => <div className="panel p-3" key={c.id}><div className="flex justify-between gap-2"><div className="min-w-0 flex-1"><b>{c.school}</b><div className="mt-2 grid gap-1 text-xs"><div className="flex items-center justify-between gap-2"><span>{c.reason}</span><button title="Copy" onClick={() => copyField(c.reason)}><Fa icon={faCopy} /></button></div><div className="flex items-center justify-between gap-2"><span>{c.outcome}</span><button title="Copy" onClick={() => copyField(c.outcome)}><Fa icon={faCopy} /></button></div>{c.notes && <div className="flex items-start justify-between gap-2"><span className="whitespace-pre-wrap">{c.notes}</span><button title="Copy" onClick={() => copyField(c.notes)}><Fa icon={faCopy} /></button></div>}</div><div className="text-xs muted">{fmtDate(c.date)}</div></div><button onClick={() => props.removeCall(c.id)}><Fa icon={faTrashCan} /></button></div></div>)}</List></section>;
+  const lists = <section className="grid gap-3 lg:grid-cols-2"><List title={tx.meetings} count={props.meetings.length}>{props.meetings.map((m) => <div className="panel p-3" key={m.id}><div className="flex justify-between"><div><b>{m.school}</b><div className="text-xs muted">{fmtDate(m.date)} - {m.time || tx.dueTime} - {m.type}</div></div><button onClick={() => props.removeMeeting(m.id)}><Fa icon={faTrashCan} /></button></div><button onClick={() => props.toggleInvite(m.id)}><Pill good={m.teamsInviteSent} warn={!m.teamsInviteSent}>{m.teamsInviteSent ? tx.teamsSent : tx.teamsNotSent}</Pill></button></div>)}</List><List title={tx.calls} count={props.calls.length}>{props.calls.map((c) => <div className="panel p-3" key={c.id}><div className="flex justify-between gap-2"><div className="min-w-0 flex-1"><b>{c.school}</b><div className="mt-2 grid gap-1 text-xs"><div>{c.reason}</div><div>{c.outcome}</div>{c.notes && <div className="whitespace-pre-wrap">{c.notes}</div>}</div><div className="text-xs muted">{fmtDate(c.date)}</div></div><button onClick={() => props.removeCall(c.id)}><Fa icon={faTrashCan} /></button></div></div>)}</List></section>;
   return <main className="grid gap-3 lg:grid-cols-[320px_1fr]"><section className={"space-y-3 " + (listsFirst ? "order-2" : "")}><button className="btn soft w-full" onClick={() => setListsFirst(!listsFirst)}>{listsFirst ? "Quick add first" : "Lists first"}</button>{kpiCards}{quickAdd}</section><section className={listsFirst ? "order-1" : ""}>{lists}</section></main>;
 }
 
@@ -2051,7 +2279,7 @@ function OpportunityEditPanel({ tx, optionSets, opportunity, update, close }) {
   const typeOptions = [...new Set([...labelsFor(optionSets, "opportunityTypes"), opportunity.opportunityType].filter(Boolean))];
   const [draft, setDraft] = useState(() => ({ ...opportunity }));
   const save = () => {
-    if (![draft.school, draft.name, draft.opportunityType, draft.date].every((value) => String(value || "").trim())) return alert(tx.required);
+    if (![draft.school, draft.name, draft.opportunityType, draft.date, draft.endDate].every((value) => String(value || "").trim())) return alert(tx.required);
     update(opportunity.id, {
       school: draft.school.trim(),
       name: draft.name.trim(),
@@ -2061,21 +2289,42 @@ function OpportunityEditPanel({ tx, optionSets, opportunity, update, close }) {
       status: normalizeOpportunityStatus(draft.status),
       value: safeNumber(draft.value, 0),
       date: draft.date,
-      wonDate: normalizeOpportunityStatus(draft.status) === "won" ? draft.wonDate || todayValue() : "",
+      endDate: draft.endDate,
+      contactStatus: draft.contactStatus,
+      emailStatus: draft.emailStatus,
+      callStatus: draft.callStatus,
+      lostReason: draft.lostReason || "",
+      lostReasonOther: draft.lostReasonOther || "",
+      wonDate: normalizeOpportunityStatus(draft.status) === "won" ? draft.wonDate || draft.closedDate || todayValue() : "",
+      closedDate: normalizeOpportunityStatus(draft.status) === "pending" ? "" : draft.closedDate || todayValue(),
     });
     close();
   };
-  return <div className="mt-3 rounded-3xl bg-white p-3"><div className="grid gap-2"><input className="input" placeholder={tx.opportunityName} value={draft.name || ""} onChange={(e) => setDraft({ ...draft, name: e.target.value })} /><input className="input" placeholder={tx.school} value={draft.school || ""} onChange={(e) => setDraft({ ...draft, school: e.target.value })} /><select className="input" value={draft.opportunityType || ""} onChange={(e) => setDraft({ ...draft, opportunityType: e.target.value })}>{typeOptions.map((x) => <option key={x}>{x}</option>)}</select><input className="input" type="number" min="0" step="0.01" placeholder={tx.opportunityValue} value={draft.value || ""} onChange={(e) => setDraft({ ...draft, value: e.target.value })} /><div className="grid grid-cols-2 gap-2"><label className="grid gap-1 text-[10px] font-black uppercase muted">{tx.dateCreated}<input className="input" type="date" value={draft.date || todayValue()} onChange={(e) => setDraft({ ...draft, date: e.target.value })} /></label><label className="grid gap-1 text-[10px] font-black uppercase muted">{tx.dateWon}<input className="input" type="date" value={draft.wonDate || ""} onChange={(e) => setDraft({ ...draft, wonDate: e.target.value, status: "won" })} /></label></div><div className="grid grid-cols-3 gap-2">{OPPORTUNITY_STATUSES.map((status) => <button key={status} className={statusClass(status)} onClick={() => setDraft({ ...draft, status, wonDate: status === "won" ? draft.wonDate || todayValue() : "" })}>{opportunityStatusLabel(status, tx)}</button>)}</div><div className="grid grid-cols-2 gap-2"><button className="btn primary" onClick={save}><Fa icon={faFloppyDisk} /> <span>{tx.save}</span></button><button className="btn soft" onClick={close}><Fa icon={faXmark} /> <span>{tx.dismiss}</span></button></div></div></div>;
+  return <div className="mt-3 rounded-3xl bg-white p-3"><div className="grid gap-2"><input className="input" placeholder={tx.opportunityName} value={draft.name || ""} onChange={(e) => setDraft({ ...draft, name: e.target.value })} /><input className="input" placeholder={tx.school} value={draft.school || ""} onChange={(e) => setDraft({ ...draft, school: e.target.value })} /><select className="input" value={draft.opportunityType || ""} onChange={(e) => setDraft({ ...draft, opportunityType: e.target.value })}>{typeOptions.map((x) => <option key={x}>{x}</option>)}</select><input className="input" type="number" min="0" step="0.01" placeholder={tx.opportunityValue} value={draft.value || ""} onChange={(e) => setDraft({ ...draft, value: e.target.value })} /><div className="grid grid-cols-2 gap-2"><label className="grid gap-1 text-[10px] font-black uppercase muted">{tx.dateCreated}<input className="input" type="date" value={draft.date || todayValue()} onChange={(e) => setDraft({ ...draft, date: e.target.value })} /></label><label className="grid gap-1 text-[10px] font-black uppercase muted">{tx.endDate}<input className="input" type="date" value={draft.endDate || draft.date || todayValue()} onChange={(e) => setDraft({ ...draft, endDate: e.target.value })} /></label></div><div className="grid gap-2 sm:grid-cols-3"><select className="input" value={draft.contactStatus || CONTACT_STATUSES[0]} onChange={(e) => setDraft({ ...draft, contactStatus: e.target.value })}>{CONTACT_STATUSES.map((x) => <option key={x}>{x}</option>)}</select><select className="input" value={draft.emailStatus || EMAIL_STATUSES[0]} onChange={(e) => setDraft({ ...draft, emailStatus: e.target.value })}>{EMAIL_STATUSES.map((x) => <option key={x}>{x}</option>)}</select><select className="input" value={draft.callStatus || CALL_STATUSES[0]} onChange={(e) => setDraft({ ...draft, callStatus: e.target.value })}>{CALL_STATUSES.map((x) => <option key={x}>{x}</option>)}</select></div><div className="grid grid-cols-2 gap-2"><button className="btn primary" onClick={save}><Fa icon={faFloppyDisk} /> <span>{tx.save}</span></button><button className="btn soft" onClick={close}><Fa icon={faXmark} /> <span>{tx.dismiss}</span></button></div></div></div>;
 }
 
 function OpportunityCard({ tx, optionSets, opportunity, updateOpp, remove }) {
   const [editing, setEditing] = useState(false);
-  return <div className="panel shadow-card p-3"><div className="flex justify-between gap-2"><div><b>{opportunity.name || opportunity.opportunityName}</b><div className="text-xs muted">{opportunity.school} - {opportunityTypeLabel(opportunity)}</div><div className="mt-1 text-xs font-black brand-text">{formatMoney(opportunity.value)}</div></div><div className="flex gap-2"><button title={tx.editTask} onClick={() => setEditing(!editing)}><Fa icon={faPenToSquare} /></button><button onClick={() => remove(opportunity.id)}><Fa icon={faTrashCan} /></button></div></div><div className="mt-2 grid gap-2 sm:grid-cols-3">{OPPORTUNITY_STATUSES.map((status) => <button key={status} className={statusClass(status)} onClick={() => updateOpp(opportunity.id, { status })}>{opportunityStatusLabel(status, tx)}</button>)}</div><div className="mt-2 text-xs muted">{tx.dateCreated}: {fmtDate(opportunity.date)}{opportunity.wonDate ? ` - ${tx.dateWon}: ${fmtDate(opportunity.wonDate)}` : ""}</div>{editing && <OpportunityEditPanel tx={tx} optionSets={optionSets} opportunity={opportunity} update={updateOpp} close={() => setEditing(false)} />}</div>;
+  const [markingLost, setMarkingLost] = useState(false);
+  const [lostReason, setLostReason] = useState(LOST_REASONS[0]);
+  const [lostReasonOther, setLostReasonOther] = useState("");
+  const status = normalizeOpportunityStatus(opportunity.status);
+  const lostText = opportunity.lostReason === "Other" && opportunity.lostReasonOther ? opportunity.lostReasonOther : opportunity.lostReason;
+  const markLost = () => {
+    if (!lostReason || (lostReason === "Other" && !lostReasonOther.trim())) return alert(tx.required);
+    updateOpp(opportunity.id, { status: "lost", lostReason, lostReasonOther: lostReason === "Other" ? lostReasonOther.trim() : "" });
+    setMarkingLost(false);
+  };
+  return <div className="panel shadow-card opportunity-card p-3"><div className="flex justify-between gap-2"><div className="min-w-0"><b>{opportunity.name || opportunity.opportunityName}</b><div className="text-xs muted">{opportunity.school} - {opportunityTypeLabel(opportunity)}</div></div><div className="flex flex-wrap justify-end gap-1"><button className="btn soft bg-white" title={tx.editTask} onClick={() => setEditing(!editing)}><Fa icon={faPenToSquare} /></button><button className="btn soft bg-white text-red-700" onClick={() => remove(opportunity.id)}><Fa icon={faTrashCan} /></button></div></div><div className="mt-2 grid gap-2 text-xs sm:grid-cols-2">{status === "pending" && <><Pill>{tx.contactStatus}: {opportunity.contactStatus}</Pill><Pill warn={opportunityDeadlineLabel(opportunity, tx) === tx.pastDeadline}>{opportunityDeadlineLabel(opportunity, tx)}</Pill><Pill>{tx.emailStatus}: {opportunity.emailStatus}</Pill><Pill>{tx.callStatus}: {opportunity.callStatus}</Pill><div className="rounded-2xl bg-white/70 p-2 font-black">{opportunityLastActivity(opportunity, tx)}</div><div className="rounded-2xl bg-white/70 p-2 font-black">{tx.suggestedAction}: {opportunitySuggestedAction(opportunity, tx)}</div><div className="rounded-2xl bg-white/70 p-2 font-black">{formatMoney(opportunity.value)}</div></>}{status === "won" && <><Pill good>{tx.won}</Pill><Pill>{tx.closedDate}: {fmtDate(opportunity.closedDate || opportunity.wonDate)}</Pill><div className="rounded-2xl bg-white/70 p-2 font-black">{formatMoney(opportunity.value)}</div><div className="rounded-2xl bg-white/70 p-2 font-black">{tx.totalCommission}: {formatMoney(Number(opportunity.value || 0) * 0.1)}</div><Pill>{tx.emailStatus}: {opportunity.emailStatus}</Pill><Pill>{tx.callStatus}: {opportunity.callStatus}</Pill></>}{status === "lost" && <><Pill warn>{tx.lost}</Pill><Pill>{tx.lostReason}: {lostText}</Pill><div className="rounded-2xl bg-white/70 p-2 font-black">{opportunityLastActivity(opportunity, tx)}</div><div className="rounded-2xl bg-white/70 p-2 font-black">{formatMoney(opportunity.value)}</div><Pill>{tx.emailStatus}: {opportunity.emailStatus}</Pill><Pill>{tx.callStatus}: {opportunity.callStatus}</Pill></>}</div><div className="mt-3 grid gap-2 sm:grid-cols-3">{status === "pending" && <><button className="btn primary" onClick={() => updateOpp(opportunity.id, { status: "won" })}>{tx.markAsWon}</button><button className="btn soft" onClick={() => setMarkingLost(!markingLost)}>{tx.markAsLost}</button></>}{status !== "pending" && <button className="btn primary" onClick={() => updateOpp(opportunity.id, { status: "pending" })}>{tx.reopenOpportunity}</button>}<button className="btn soft" onClick={() => setEditing(!editing)}>{tx.editTask}</button></div>{markingLost && <div className="mt-2 rounded-3xl bg-white p-3"><select className="input" value={lostReason} onChange={(e) => setLostReason(e.target.value)}>{LOST_REASONS.map((reason) => <option key={reason}>{reason}</option>)}</select>{lostReason === "Other" && <input className="input mt-2" placeholder={tx.otherLostReason} value={lostReasonOther} onChange={(e) => setLostReasonOther(e.target.value)} />}<button className="btn primary mt-2" onClick={markLost}>{tx.markAsLost}</button></div>}{editing && <OpportunityEditPanel tx={tx} optionSets={optionSets} opportunity={opportunity} update={updateOpp} close={() => setEditing(false)} />}</div>;
 }
 
 function OpportunitiesTab({ tx, optionSets, form, setForm, add, opportunities, remove, updateOpp }) {
   const typeOptions = labelsFor(optionSets, "opportunityTypes");
-  return <main className="grid gap-3 lg:grid-cols-[340px_1fr]"><section className="panel shadow-card p-3"><h2 className="brand brand-text">{tx.addOpportunity}</h2><div className="mt-2 grid gap-2"><input className="input" placeholder={tx.opportunityName} value={form.name || ""} onChange={(e) => setForm({ ...form, name: e.target.value })} /><input className="input" placeholder={tx.school} value={form.school} onChange={(e) => setForm({ ...form, school: e.target.value })} /><select className="input" value={form.opportunityType || typeOptions[0] || ""} onChange={(e) => setForm({ ...form, opportunityType: e.target.value })}>{typeOptions.map((x) => <option key={x}>{x}</option>)}</select><input className="input" type="number" min="0" step="0.01" placeholder={tx.opportunityValue} value={form.value || ""} onChange={(e) => setForm({ ...form, value: e.target.value })} /><button className="btn primary" onClick={add}><Fa icon={faCirclePlus} /> <span>{tx.addOpportunity}</span></button></div></section><List title={tx.opportunities} count={opportunities.length}>{opportunities.map((o) => <OpportunityCard key={o.id} tx={tx} optionSets={optionSets} opportunity={o} updateOpp={updateOpp} remove={remove} />)}</List></main>;
+  const inProgress = opportunities.filter((opp) => normalizeOpportunityStatus(opp.status) === "pending");
+  const won = opportunities.filter((opp) => normalizeOpportunityStatus(opp.status) === "won");
+  const lost = opportunities.filter((opp) => normalizeOpportunityStatus(opp.status) === "lost");
+  const render = (items) => items.map((o) => <OpportunityCard key={o.id} tx={tx} optionSets={optionSets} opportunity={o} updateOpp={updateOpp} remove={remove} />);
+  return <main className="grid gap-3 lg:grid-cols-[340px_1fr]"><section className="panel shadow-card p-3"><h2 className="brand brand-text">{tx.addOpportunity}</h2><div className="mt-2 grid gap-2"><input className="input" placeholder={tx.opportunityName} value={form.name || ""} onChange={(e) => setForm({ ...form, name: e.target.value })} /><input className="input" placeholder={tx.school} value={form.school} onChange={(e) => setForm({ ...form, school: e.target.value })} /><select className="input" value={form.opportunityType || typeOptions[0] || ""} onChange={(e) => setForm({ ...form, opportunityType: e.target.value })}>{typeOptions.map((x) => <option key={x}>{x}</option>)}</select><input className="input" type="number" min="0" step="0.01" placeholder={tx.opportunityValue} value={form.value || ""} onChange={(e) => setForm({ ...form, value: e.target.value })} /><label className="grid gap-1 text-[10px] font-black uppercase muted">{tx.endDate}<input className="input" type="date" value={form.endDate || todayValue()} onChange={(e) => setForm({ ...form, endDate: e.target.value })} /></label><button className="btn primary" onClick={add}><Fa icon={faCirclePlus} /> <span>{tx.addOpportunity}</span></button></div></section><section className="grid gap-3"><List title={tx.inProgressOpportunities} count={inProgress.length}>{render(inProgress)}</List><List title={tx.wonOpportunities} count={won.length}>{render(won)}</List><List title={tx.lostOpportunities} count={lost.length}>{render(lost)}</List></section></main>;
 }
 
 function LevelUps({ tx, levelUps, form, setForm, add, toggle, remove }) {

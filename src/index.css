@@ -249,17 +249,38 @@
     letter-spacing: 0;
   }
 
-  .auth-logo {
-    width: 76px;
-    height: 76px;
-    border-radius: 20px;
-    box-shadow: var(--brand-shadow);
-    object-fit: cover;
+  .auth-logo-slot {
+    min-height: 84px;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
     margin-bottom: 8px;
   }
 
-  .auth-kicker {
-    color: #c47b1a;
+  .auth-brand-logo {
+    width: min(260px, 100%);
+    max-height: 84px;
+    object-fit: contain;
+  }
+
+  .dashboard-topline {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
+  .dashboard-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 4px;
+    flex-wrap: wrap;
+  }
+
+  .opportunity-card {
+    background: #fff;
   }
 
   .google-btn {
