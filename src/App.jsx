@@ -2102,10 +2102,10 @@ function AuthGate({ tx, signInEmail, createEmailAccount, resetPassword, signInGo
   return (
     <div className="app-shell auth-page min-h-screen">
       <div className="app-bg fixed inset-0 -z-10" />
+      <div className="auth-home-logo">
+        <img className="auth-home-logo-img" src={`${import.meta.env.BASE_URL}eteach-logo.png`} alt="eTeach" />
+      </div>
       <main className="auth-shell panel shadow-card">
-        <div className="auth-logo-slot">
-          <img className="auth-brand-logo" src={`${import.meta.env.BASE_URL}eteach-logo.png`} alt="eTeach" />
-        </div>
         <h1 className="brand brand-text">{tx.welcomeTitle}</h1>
         <p className="muted">{tx.welcomeBody}</p>
         <form className="mt-4 grid gap-2" onSubmit={submit}>

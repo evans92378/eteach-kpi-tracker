@@ -13,6 +13,7 @@ dist-ssr
 release
 *.zip
 *.local
+.codex-temp-*/
 
 # Unused Vite template leftovers
 src/App.css
