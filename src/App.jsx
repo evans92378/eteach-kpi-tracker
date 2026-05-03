@@ -25,6 +25,7 @@ import {
   faRightFromBracket,
   faRightToBracket,
   faListCheck,
+  faLock,
   faMinus,
   faNoteSticky,
   faPenToSquare,
@@ -157,6 +158,29 @@ const PRIORITIES = [
   { value: "urgent", label: "Urgent", color: "red" },
 ];
 const OPPORTUNITY_STATUSES = ["pending", "won", "lost"];
+const APPLICATION_METHODS = ["Online Form", "Own Form", "Redirecting", "Online Form Live", "Moving to Online Form", "Unknown"];
+const RENEWAL_STATUSES = ["Not started", "First reminder sent", "Second reminder sent", "Auto-renewed", "Confirmed", "Renewed", "Churn risk", "Churned", "Unknown"];
+const CHURN_RISKS = ["Low", "Medium", "High", "Unknown"];
+const PORTFOLIO_FIELDS = [
+  "externalId",
+  "accountName",
+  "accountType",
+  "renewalDate",
+  "currentRate",
+  "baseTarget",
+  "actualRate",
+  "applicationMethod",
+  "renewalStatus",
+  "lastSpokeWith",
+  "lastProductiveContactAt",
+  "churnRisk",
+  "localAuthority",
+  "phase",
+  "licenceType",
+  "latestUpdate",
+  "notes",
+];
+const PORTFOLIO_REQUIRED_FIELDS = ["accountName"];
 const CONTACT_STATUSES = ["No Contact", "Contact Made"];
 const EMAIL_STATUSES = ["Not Sent", "Sent", "Replied"];
 const CALL_STATUSES = ["Not Called", "No Answer", "Spoke"];
@@ -178,6 +202,93 @@ const DEFAULT_FOCUS_SCHEDULE = [
   { id: "focus-email", start: "15:30", end: "16:30", label: "Follow-up Emails" },
   { id: "focus-summary", start: "16:30", end: "17:00", label: "Daily Summary" },
 ];
+const MICROSOFT365_STATUSES = ["not_configured", "configured_not_connected", "connecting", "connected", "admin_approval_required", "permission_denied", "error"];
+const DEFAULT_FEATURE_FLAGS = {
+  microsoft365AuthEnabled: false,
+  microsoft365AccountCreationEnabled: false,
+  microsoftCalendarReadEnabled: false,
+  calendarPlannerEnabled: false,
+};
+const DEFAULT_INTEGRATIONS = {
+  microsoft365: {
+    status: "not_configured",
+    enabled: false,
+    authEnabled: false,
+    accountCreationEnabled: false,
+    calendarReadEnabled: false,
+    tenantId: null,
+    clientId: null,
+    displayName: null,
+    email: null,
+    scopes: [],
+    lastConnectedAt: null,
+    lastSyncAt: null,
+    errorMessage: null,
+    adminApprovalRequired: false,
+  },
+};
+const DEFAULT_NOTIFICATION_SETTINGS = {
+  enabled: false,
+  permission: "not_enabled",
+  currentFocusReminders: true,
+  focusStartReminder: true,
+  focusFiveMinuteWarning: true,
+  focusEndReminder: false,
+  meetingReminders: true,
+  meetingReminderOffsets: [15, 0],
+  taskReminders: true,
+  urgentTaskReminders: true,
+  taskReminderOffsets: [60, 15, 0],
+  morningTaskDigest: false,
+  endOfDayReminder: true,
+  endOfDayReminderTime: "16:45",
+};
+const DEFAULT_PORTFOLIO_MAPPING = {
+  activeSource: "personal",
+  teamName: "",
+  connectionStatus: "not_configured",
+  workbookName: "",
+  worksheetName: "",
+  tableName: "",
+  headerRow: 1,
+  ignoreRepeatedHeaders: true,
+  ignoreBlankRows: true,
+  uniqueIdStrategy: "externalId",
+  syncEnabled: false,
+  syncDirection: "manual",
+  conflictHandling: "ask",
+  detectedColumns: ["School Name", "Renewal Due Date", "App Method", "Status", "LA", "Phase"],
+  columnMap: {
+    accountName: "School Name",
+    renewalDate: "Renewal Due Date",
+    applicationMethod: "App Method",
+    renewalStatus: "Status",
+    localAuthority: "LA",
+    phase: "Phase",
+  },
+  valueMaps: {
+    applicationMethod: {
+      "Downloadable Form": "Own Form",
+      "Eteach Form": "Online Form",
+      "External URL": "Redirecting",
+    },
+    renewalStatus: {
+      "At Risk": "Churn risk",
+      "Reminder 1": "First reminder sent",
+      "Reminder 2": "Second reminder sent",
+    },
+  },
+  lastSyncAt: null,
+  syncLog: [],
+};
+const DEFAULT_SECTION_ORDER = {
+  kpis: ["kpiCards", "quickAdd", "meetings", "calls"],
+  opportunities: ["addOpportunity", "inProgress", "won", "lost"],
+  tasks: ["taskActions", "liveTasks", "closedTasks", "addTask"],
+  notes: ["notesList", "notesToSelf", "addNote"],
+  levelUps: ["addLevelUp", "levelUpsList"],
+  portfolio: ["portfolioControls", "upcomingRenewals", "churnRisk", "applicationMethods", "recentlyContacted", "allAccounts"],
+};
 
 const copy = {
   en: {
@@ -208,6 +319,126 @@ const copy = {
     design: "Design",
     dropdownOptions: "Dropdown options",
     dropdownHelp: "Edit future dropdown choices. Saved historic records keep the wording they already have.",
+    integrations: "Integrations",
+    microsoft365: "Microsoft 365",
+    integrationStatus: "Status",
+    notConfigured: "Not configured",
+    configuredNotConnected: "Configured, not connected",
+    connecting: "Connecting",
+    connected: "Connected",
+    adminApprovalRequired: "Admin approval required",
+    permissionDenied: "Permission denied",
+    integrationError: "Error",
+    microsoftDescription: "Connect Microsoft 365 to enable personal calendar planning.",
+    requiredPermissions: "Required permissions",
+    availableFeatures: "Available features",
+    connectionControls: "Connection controls",
+    dataAccessExplanation: "Data access explanation",
+    microsoftPermissionSignIn: "Sign in with Microsoft 365",
+    microsoftPermissionCalendar: "Read your own calendar",
+    microsoftDataNote: "This app will only read your own Microsoft calendar. It will not read team calendars, create meetings, send invites, or write to CRM.",
+    configureMicrosoft365: "Configure Microsoft 365",
+    connectMicrosoft365: "Connect Microsoft 365",
+    testConnection: "Test connection",
+    microsoftNotConfiguredHelp: "Microsoft 365 integration has not been configured yet.",
+    microsoftConnectHelp: "Sign in with your work Microsoft 365 account to enable personal calendar planning.",
+    microsoftAdminHelp: "Your organisation needs to approve this Microsoft 365 integration before it can be used.",
+    microsoftPermissionHelp: "Calendar permission was not granted. Personal calendar planning is unavailable.",
+    microsoftErrorHelp: "Microsoft 365 is unavailable right now. Retry when configuration is available.",
+    microsoftLockedHelp: "This app can be prepared for Microsoft 365 sign-in, but the feature is currently locked until approved and configured.",
+    authentication: "Authentication",
+    calendarSync: "Calendar sync",
+    accountCreation: "Account creation",
+    locked: "Locked",
+    reason: "Reason",
+    requiresApproval: "Requires company/IT approval",
+    personalCalendarSync: "Personal calendar read-only sync",
+    planUsingCalendar: "Plan using calendar",
+    calendarConflictDetection: "Calendar conflict detection",
+    signInMicrosoft365: "Sign in with Microsoft 365",
+    createMicrosoft365: "Create account with Microsoft 365",
+    microsoftAuthLocked: "Microsoft 365 sign-in is not enabled yet. This feature requires company/IT approval.",
+    comingSoonMicrosoft: "Coming soon: sign in securely with your work Microsoft 365 account.",
+    or: "or",
+    planManually: "Plan manually",
+    requiresMicrosoftCalendar: "Requires Microsoft 365 calendar integration.",
+    viewIntegrationSettings: "View integration settings",
+    personalCalendarPlanner: "Personal Calendar Planner",
+    readOnlyCalendar: "Personal calendar only. Read-only planning preview.",
+    meetingLength: "Meeting length",
+    freeSlot: "Free slot",
+    saveLocalMeetingOnly: "Save local planned meeting only",
+    notifications: "Notifications",
+    enableNotifications: "Enable notifications on this device",
+    notificationStatus: "Notification status",
+    enabled: "Enabled",
+    notEnabled: "Not enabled",
+    blocked: "Blocked",
+    unsupported: "Unsupported",
+    notificationUnsupported: "Notifications are not supported on this device/browser. You can still use in-app reminders while the dashboard is open.",
+    notificationHelp: "Notifications and reminders are saved to your own dashboard only.",
+    focusReminders: "Focus reminders",
+    fiveMinuteWarning: "5 minute warning",
+    focusEndReminder: "Focus end reminder",
+    meetingReminderSettings: "Meeting reminders",
+    taskReminderSettings: "Task reminders",
+    urgentTaskReminders: "Urgent task reminders",
+    dueTaskReminders: "Tasks with due time",
+    morningDigest: "Morning task digest",
+    endOfDayReminder: "End-of-day reminder",
+    endOfDayReminderTime: "End-of-day reminder time",
+    taskDeadlineTitle: "Task deadline approaching",
+    taskDeadlineBody: "The following tasks are due soon.",
+    portfolio: "Portfolio",
+    portfolioRenewals: "Portfolio / Renewals",
+    upcomingRenewals: "Upcoming Renewals",
+    churnRisk: "Churn Risk",
+    applicationMethod: "Application Method",
+    recentlyContacted: "Recently Contacted",
+    allAccounts: "All Accounts",
+    addIndirectSchool: "+ Add indirect school",
+    directRecord: "Portfolio-linked",
+    indirectRecord: "App-only",
+    activeSource: "Active source",
+    usingPersonalPortfolio: "Using personal portfolio",
+    usingTeamPortfolio: "Using team portfolio",
+    excelPortfolioSync: "Microsoft Excel / Portfolio Sync",
+    mappingWizard: "Mapping wizard",
+    connectMicrosoftPlaceholder: "Connect Microsoft account placeholder",
+    selectWorkbookPlaceholder: "Select workbook placeholder",
+    selectWorksheetPlaceholder: "Select worksheet/table placeholder",
+    detectColumns: "Detect columns",
+    headerRow: "Header row",
+    ignoreRepeatedHeaders: "Ignore repeated header rows",
+    ignoreBlankRows: "Ignore blank/summary rows",
+    columnMapping: "Column mapping",
+    valueMapping: "Value mapping",
+    previewMappedRecords: "Preview mapped records",
+    confirmMapping: "Confirm mapping",
+    syncDirection: "Sync direction",
+    conflictHandling: "Conflict handling",
+    syncNow: "Sync Now",
+    pendingSync: "Pending sync",
+    synced: "Synced",
+    conflict: "Conflict",
+    source: "Source",
+    accountName: "Account name",
+    externalId: "External ID",
+    accountType: "Account type",
+    renewalDate: "Renewal date",
+    currentRate: "Current rate",
+    baseTarget: "Base target",
+    actualRate: "Actual rate",
+    renewalStatus: "Renewal status",
+    lastSpokeWith: "Last spoke with",
+    lastProductiveContactAt: "Last productive contact",
+    localAuthority: "Local authority",
+    phase: "Phase",
+    licenceType: "Licence type",
+    latestUpdate: "Latest update",
+    syncStatus: "Sync status",
+    lessReliableId: "No stable unique ID is mapped yet. Account-name matching is less reliable for two-way sync.",
+    largerScreenSetup: "This setup is easier on a larger screen.",
     addOption: "Add option",
     englishLabel: "English",
     cymraegLabel: "Cymraeg",
@@ -442,6 +673,126 @@ const copy = {
     design: "Dyluniad",
     dropdownOptions: "Opsiynau cwymplen",
     dropdownHelp: "Golygwch ddewisiadau cwymplen y dyfodol. Mae cofnodion hanesyddol yn cadw eu geiriad presennol.",
+    integrations: "Integreiddiadau",
+    microsoft365: "Microsoft 365",
+    integrationStatus: "Statws",
+    notConfigured: "Heb ei ffurfweddu",
+    configuredNotConnected: "Wedi ei ffurfweddu, heb gysylltu",
+    connecting: "Yn cysylltu",
+    connected: "Wedi cysylltu",
+    adminApprovalRequired: "Angen cymeradwyaeth gweinyddwr",
+    permissionDenied: "Gwrthodwyd caniatad",
+    integrationError: "Gwall",
+    microsoftDescription: "Cysylltwch Microsoft 365 i alluogi cynllunio calendr personol.",
+    requiredPermissions: "Caniatadau gofynnol",
+    availableFeatures: "Nodweddion sydd ar gael",
+    connectionControls: "Rheolyddion cysylltu",
+    dataAccessExplanation: "Esboniad mynediad data",
+    microsoftPermissionSignIn: "Mewngofnodi gyda Microsoft 365",
+    microsoftPermissionCalendar: "Darllen eich calendr eich hun",
+    microsoftDataNote: "Bydd yr ap hwn yn darllen eich calendr Microsoft eich hun yn unig. Ni fydd yn darllen calendrau tim, creu cyfarfodydd, anfon gwahoddiadau, na ysgrifennu i CRM.",
+    configureMicrosoft365: "Ffurfweddu Microsoft 365",
+    connectMicrosoft365: "Cysylltu Microsoft 365",
+    testConnection: "Profi cysylltiad",
+    microsoftNotConfiguredHelp: "Nid yw integreiddiad Microsoft 365 wedi ei ffurfweddu eto.",
+    microsoftConnectHelp: "Mewngofnodwch gyda'ch cyfrif gwaith Microsoft 365 i alluogi cynllunio calendr personol.",
+    microsoftAdminHelp: "Mae angen i'ch sefydliad gymeradwyo'r integreiddiad Microsoft 365 hwn cyn ei ddefnyddio.",
+    microsoftPermissionHelp: "Ni roddwyd caniatad calendr. Nid yw cynllunio calendr personol ar gael.",
+    microsoftErrorHelp: "Nid yw Microsoft 365 ar gael ar hyn o bryd. Ceisiwch eto pan fydd ffurfweddiad ar gael.",
+    microsoftLockedHelp: "Gellir paratoi'r ap hwn ar gyfer mewngofnodi Microsoft 365, ond mae'r nodwedd wedi ei chloi nes ei chymeradwyo a'i ffurfweddu.",
+    authentication: "Dilysu",
+    calendarSync: "Cysoni calendr",
+    accountCreation: "Creu cyfrif",
+    locked: "Wedi cloi",
+    reason: "Rheswm",
+    requiresApproval: "Angen cymeradwyaeth cwmni/IT",
+    personalCalendarSync: "Cysoni calendr personol darllen-yn-unig",
+    planUsingCalendar: "Cynllunio gan ddefnyddio calendr",
+    calendarConflictDetection: "Canfod gwrthdaro calendr",
+    signInMicrosoft365: "Mewngofnodi gyda Microsoft 365",
+    createMicrosoft365: "Creu cyfrif gyda Microsoft 365",
+    microsoftAuthLocked: "Nid yw mewngofnodi Microsoft 365 wedi ei alluogi eto. Mae angen cymeradwyaeth cwmni/IT ar y nodwedd hon.",
+    comingSoonMicrosoft: "Yn dod yn fuan: mewngofnodi'n ddiogel gyda'ch cyfrif gwaith Microsoft 365.",
+    or: "neu",
+    planManually: "Cynllunio a llaw",
+    requiresMicrosoftCalendar: "Mae angen integreiddiad calendr Microsoft 365.",
+    viewIntegrationSettings: "Gweld gosodiadau integreiddio",
+    personalCalendarPlanner: "Cynlluniwr Calendr Personol",
+    readOnlyCalendar: "Calendr personol yn unig. Rhagolwg cynllunio darllen-yn-unig.",
+    meetingLength: "Hyd cyfarfod",
+    freeSlot: "Slot rhydd",
+    saveLocalMeetingOnly: "Cadw cyfarfod lleol yn unig",
+    notifications: "Hysbysiadau",
+    enableNotifications: "Galluogi hysbysiadau ar y ddyfais hon",
+    notificationStatus: "Statws hysbysiadau",
+    enabled: "Wedi galluogi",
+    notEnabled: "Heb alluogi",
+    blocked: "Wedi blocio",
+    unsupported: "Heb gefnogaeth",
+    notificationUnsupported: "Nid yw hysbysiadau ar gael ar y ddyfais/porwr hwn. Gallwch barhau i ddefnyddio atgoffion mewn-ap tra bod y dangosfwrdd ar agor.",
+    notificationHelp: "Mae hysbysiadau ac atgoffion yn cael eu cadw i'ch dangosfwrdd chi yn unig.",
+    focusReminders: "Atgoffion ffocws",
+    fiveMinuteWarning: "Rhybudd 5 munud",
+    focusEndReminder: "Atgoffa diwedd ffocws",
+    meetingReminderSettings: "Atgoffion cyfarfodydd",
+    taskReminderSettings: "Atgoffion tasgau",
+    urgentTaskReminders: "Atgoffion tasgau brys",
+    dueTaskReminders: "Tasgau gydag amser dyledus",
+    morningDigest: "Crynodeb tasgau bore",
+    endOfDayReminder: "Atgoffa diwedd dydd",
+    endOfDayReminderTime: "Amser atgoffa diwedd dydd",
+    taskDeadlineTitle: "Terfyn tasg yn agosau",
+    taskDeadlineBody: "Mae'r tasgau canlynol yn ddyledus yn fuan.",
+    portfolio: "Portfolio",
+    portfolioRenewals: "Portfolio / Adnewyddu",
+    upcomingRenewals: "Adnewyddiadau sydd ar ddod",
+    churnRisk: "Risg churn",
+    applicationMethod: "Dull ymgeisio",
+    recentlyContacted: "Cysylltwyd yn ddiweddar",
+    allAccounts: "Pob cyfrif",
+    addIndirectSchool: "+ Ychwanegu ysgol anuniongyrchol",
+    directRecord: "Wedi'i gysylltu a portfolio",
+    indirectRecord: "Ap yn unig",
+    activeSource: "Ffynhonnell weithredol",
+    usingPersonalPortfolio: "Yn defnyddio portfolio personol",
+    usingTeamPortfolio: "Yn defnyddio portfolio tim",
+    excelPortfolioSync: "Microsoft Excel / Cysoni Portfolio",
+    mappingWizard: "Dewin mapio",
+    connectMicrosoftPlaceholder: "Dalfan cysylltu cyfrif Microsoft",
+    selectWorkbookPlaceholder: "Dalfan dewis llyfr gwaith",
+    selectWorksheetPlaceholder: "Dalfan dewis taflen/tabl",
+    detectColumns: "Canfod colofnau",
+    headerRow: "Rhes pennawd",
+    ignoreRepeatedHeaders: "Anwybyddu rhesi pennawd ailadroddus",
+    ignoreBlankRows: "Anwybyddu rhesi gwag/crynodeb",
+    columnMapping: "Mapio colofnau",
+    valueMapping: "Mapio gwerthoedd",
+    previewMappedRecords: "Rhagolwg cofnodion wedi'u mapio",
+    confirmMapping: "Cadarnhau mapio",
+    syncDirection: "Cyfeiriad cysoni",
+    conflictHandling: "Trin gwrthdaro",
+    syncNow: "Cysoni nawr",
+    pendingSync: "Yn aros i gysoni",
+    synced: "Wedi cysoni",
+    conflict: "Gwrthdaro",
+    source: "Ffynhonnell",
+    accountName: "Enw cyfrif",
+    externalId: "ID allanol",
+    accountType: "Math o gyfrif",
+    renewalDate: "Dyddiad adnewyddu",
+    currentRate: "Cyfradd bresennol",
+    baseTarget: "Targed sylfaen",
+    actualRate: "Cyfradd wirioneddol",
+    renewalStatus: "Statws adnewyddu",
+    lastSpokeWith: "Siaradwyd ddiwethaf gyda",
+    lastProductiveContactAt: "Cyswllt cynhyrchiol diwethaf",
+    localAuthority: "Awdurdod lleol",
+    phase: "Cyfnod",
+    licenceType: "Math trwydded",
+    latestUpdate: "Diweddariad diweddaraf",
+    syncStatus: "Statws cysoni",
+    lessReliableId: "Nid oes ID unigryw sefydlog wedi'i fapio eto. Mae paru enw cyfrif yn llai dibynadwy ar gyfer cysoni dwyffordd.",
+    largerScreenSetup: "Mae'r gosodiad hwn yn haws ar sgrin fwy.",
     addOption: "Ychwanegu opsiwn",
     englishLabel: "English",
     cymraegLabel: "Cymraeg",
@@ -805,6 +1156,7 @@ function taskPeriodDate(task) {
 }
 
 function taskTitleFromForm(form, tx) {
+  if (String(form.taskText || "").trim()) return String(form.taskText || "").trim();
   return form.type === tx.otherTask ? form.otherTitle.trim() : form.type;
 }
 
@@ -823,6 +1175,13 @@ function taskCardClass(task) {
 function timeToMinutes(value) {
   const [hour, minute] = String(value || "00:00").split(":").map(Number);
   return (Number.isFinite(hour) ? hour : 0) * 60 + (Number.isFinite(minute) ? minute : 0);
+}
+
+function minutesToTime(value) {
+  const minutes = ((Number(value) % 1440) + 1440) % 1440;
+  const h = Math.floor(minutes / 60);
+  const m = minutes % 60;
+  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
 }
 
 function normalizeFocusBlock(value, index) {
@@ -847,6 +1206,21 @@ function focusNow(schedule) {
   const current = sorted.find((block) => minutes >= timeToMinutes(block.start) && minutes < timeToMinutes(block.end));
   const next = sorted.find((block) => timeToMinutes(block.start) > minutes) || sorted[0];
   return { current, next };
+}
+
+function focusState(schedule, now = new Date()) {
+  const minutes = now.getHours() * 60 + now.getMinutes() + now.getSeconds() / 60;
+  const sorted = cleanFocusSchedule(schedule);
+  const current = sorted.find((block) => minutes >= timeToMinutes(block.start) && minutes < timeToMinutes(block.end));
+  const next = sorted.find((block) => timeToMinutes(block.start) > minutes) || sorted[0];
+  if (!current) return { current, next, progress: 0, remaining: "" };
+  const start = timeToMinutes(current.start);
+  const end = Math.max(start + 1, timeToMinutes(current.end));
+  const remainingMinutes = Math.max(0, Math.ceil(end - minutes));
+  const progress = Math.min(100, Math.max(0, ((minutes - start) / (end - start)) * 100));
+  const hours = Math.floor(remainingMinutes / 60);
+  const mins = remainingMinutes % 60;
+  return { current, next, progress, remaining: hours ? `${hours}h ${mins}m` : `${mins}m` };
 }
 
 function dailySummaryMessage({ tx, totals, salesSummary, meetings, calls, levelUps, additions }) {
@@ -964,7 +1338,7 @@ function isScheduledMeeting(meeting) {
 function isBookedMeetingRecord(meeting) {
   if (!affectsKpis(meeting) || isMeetingNoteOnly(meeting)) return false;
   const source = String(meeting.source || "");
-  if (source === "Manual" || source === "quick-add-meeting") return true;
+  if (source === "Manual" || source === "manual" || source === "calendar_slot" || source === "quick-add-meeting") return true;
   if (source === "Follow-up from note" || source === "Cyfarfod dilynol o nodyn") return true;
   return Boolean(meeting.linkedNoteId && source && !source.toLowerCase().includes("meeting note"));
 }
@@ -1228,23 +1602,253 @@ function cleanTheme(value) {
   };
 }
 
+function cleanFeatureFlags(value) {
+  const flags = isRecord(value) ? value : {};
+  return {
+    ...DEFAULT_FEATURE_FLAGS,
+    microsoft365AuthEnabled: safeBool(flags.microsoft365AuthEnabled),
+    microsoft365AccountCreationEnabled: safeBool(flags.microsoft365AccountCreationEnabled),
+    microsoftCalendarReadEnabled: safeBool(flags.microsoftCalendarReadEnabled),
+    calendarPlannerEnabled: safeBool(flags.calendarPlannerEnabled),
+  };
+}
+
+function cleanMicrosoft365(value) {
+  const item = isRecord(value) ? value : {};
+  const status = asChoice(item.status, MICROSOFT365_STATUSES, DEFAULT_INTEGRATIONS.microsoft365.status);
+  return {
+    ...DEFAULT_INTEGRATIONS.microsoft365,
+    ...item,
+    status,
+    enabled: status === "connected" || safeBool(item.enabled),
+    authEnabled: safeBool(item.authEnabled),
+    accountCreationEnabled: safeBool(item.accountCreationEnabled),
+    calendarReadEnabled: safeBool(item.calendarReadEnabled),
+    tenantId: item.tenantId || null,
+    clientId: item.clientId || null,
+    displayName: item.displayName || null,
+    email: item.email || null,
+    scopes: asArray(item.scopes).map(String),
+    lastConnectedAt: item.lastConnectedAt || null,
+    lastSyncAt: item.lastSyncAt || null,
+    errorMessage: item.errorMessage || null,
+    adminApprovalRequired: status === "admin_approval_required" || safeBool(item.adminApprovalRequired),
+  };
+}
+
+function cleanIntegrations(value) {
+  const integrations = isRecord(value) ? value : {};
+  return {
+    microsoft365: cleanMicrosoft365(integrations.microsoft365),
+  };
+}
+
+function cleanNotificationSettings(value) {
+  const settings = isRecord(value) ? value : {};
+  return {
+    ...DEFAULT_NOTIFICATION_SETTINGS,
+    ...settings,
+    enabled: safeBool(settings.enabled),
+    permission: asChoice(settings.permission, ["enabled", "not_enabled", "blocked", "unsupported"], DEFAULT_NOTIFICATION_SETTINGS.permission),
+    currentFocusReminders: settings.currentFocusReminders === undefined ? true : safeBool(settings.currentFocusReminders),
+    focusStartReminder: settings.focusStartReminder === undefined ? true : safeBool(settings.focusStartReminder),
+    focusFiveMinuteWarning: settings.focusFiveMinuteWarning === undefined ? true : safeBool(settings.focusFiveMinuteWarning),
+    focusEndReminder: safeBool(settings.focusEndReminder),
+    meetingReminders: settings.meetingReminders === undefined ? true : safeBool(settings.meetingReminders),
+    meetingReminderOffsets: asArray(settings.meetingReminderOffsets).length ? asArray(settings.meetingReminderOffsets).map(Number).filter(Number.isFinite) : DEFAULT_NOTIFICATION_SETTINGS.meetingReminderOffsets,
+    taskReminders: settings.taskReminders === undefined ? true : safeBool(settings.taskReminders),
+    urgentTaskReminders: settings.urgentTaskReminders === undefined ? true : safeBool(settings.urgentTaskReminders),
+    taskReminderOffsets: asArray(settings.taskReminderOffsets).length ? asArray(settings.taskReminderOffsets).map(Number).filter(Number.isFinite) : DEFAULT_NOTIFICATION_SETTINGS.taskReminderOffsets,
+    morningTaskDigest: safeBool(settings.morningTaskDigest),
+    endOfDayReminder: settings.endOfDayReminder === undefined ? true : safeBool(settings.endOfDayReminder),
+    endOfDayReminderTime: safeTime(settings.endOfDayReminderTime, DEFAULT_NOTIFICATION_SETTINGS.endOfDayReminderTime),
+  };
+}
+
+function cleanSectionOrder(value) {
+  const saved = isRecord(value) ? value : {};
+  return Object.fromEntries(Object.entries(DEFAULT_SECTION_ORDER).map(([key, defaults]) => {
+    const chosen = asArray(saved[key]).filter((id) => defaults.includes(id));
+    return [key, [...chosen, ...defaults.filter((id) => !chosen.includes(id))]];
+  }));
+}
+
+function cleanPortfolioMapping(value) {
+  const saved = isRecord(value) ? value : {};
+  const columnMap = isRecord(saved.columnMap) ? saved.columnMap : {};
+  const detectedColumns = asArray(saved.detectedColumns).map(String).filter(Boolean);
+  return {
+    ...DEFAULT_PORTFOLIO_MAPPING,
+    ...saved,
+    activeSource: asChoice(saved.activeSource, ["team", "personal"], DEFAULT_PORTFOLIO_MAPPING.activeSource),
+    teamName: safeText(saved.teamName),
+    connectionStatus: safeText(saved.connectionStatus, DEFAULT_PORTFOLIO_MAPPING.connectionStatus),
+    workbookName: safeText(saved.workbookName),
+    worksheetName: safeText(saved.worksheetName),
+    tableName: safeText(saved.tableName),
+    headerRow: clampNumber(saved.headerRow, 1, 200, DEFAULT_PORTFOLIO_MAPPING.headerRow),
+    ignoreRepeatedHeaders: saved.ignoreRepeatedHeaders === undefined ? true : safeBool(saved.ignoreRepeatedHeaders),
+    ignoreBlankRows: saved.ignoreBlankRows === undefined ? true : safeBool(saved.ignoreBlankRows),
+    uniqueIdStrategy: asChoice(saved.uniqueIdStrategy, ["externalId", "smartDashboardId", "accountName"], DEFAULT_PORTFOLIO_MAPPING.uniqueIdStrategy),
+    syncEnabled: safeBool(saved.syncEnabled),
+    syncDirection: asChoice(saved.syncDirection, ["manual", "two_way", "excel_to_app", "app_to_excel"], DEFAULT_PORTFOLIO_MAPPING.syncDirection),
+    conflictHandling: asChoice(saved.conflictHandling, ["latest", "app", "excel", "ask", "conflict"], DEFAULT_PORTFOLIO_MAPPING.conflictHandling),
+    detectedColumns: detectedColumns.length ? detectedColumns : DEFAULT_PORTFOLIO_MAPPING.detectedColumns,
+    columnMap: Object.fromEntries(PORTFOLIO_FIELDS.map((field) => [field, safeText(columnMap[field] || DEFAULT_PORTFOLIO_MAPPING.columnMap[field])])),
+    valueMaps: {
+      applicationMethod: { ...DEFAULT_PORTFOLIO_MAPPING.valueMaps.applicationMethod, ...(isRecord(saved.valueMaps?.applicationMethod) ? saved.valueMaps.applicationMethod : {}) },
+      renewalStatus: { ...DEFAULT_PORTFOLIO_MAPPING.valueMaps.renewalStatus, ...(isRecord(saved.valueMaps?.renewalStatus) ? saved.valueMaps.renewalStatus : {}) },
+    },
+    lastSyncAt: saved.lastSyncAt || null,
+    syncLog: asArray(saved.syncLog).slice(0, 25),
+  };
+}
+
+function normalizePortfolioValue(field, value, mapping) {
+  const text = safeText(value);
+  if (field === "applicationMethod") {
+    const mapped = mapping?.valueMaps?.applicationMethod?.[text] || text;
+    return asChoice(mapped, APPLICATION_METHODS, text || "Unknown");
+  }
+  if (field === "renewalStatus") {
+    const mapped = mapping?.valueMaps?.renewalStatus?.[text] || text;
+    return asChoice(mapped, RENEWAL_STATUSES, text || "Unknown");
+  }
+  if (field === "churnRisk") return asChoice(text, CHURN_RISKS, text || "Unknown");
+  return text;
+}
+
+function normalizePortfolioRecord(value, index, mapping = DEFAULT_PORTFOLIO_MAPPING) {
+  if (!isRecord(value)) return null;
+  const createdAt = safeIso(value.createdAt, new Date().toISOString());
+  const accountName = safeText(value.accountName || value.school || value.client || value.name);
+  if (!accountName) return null;
+  const id = safeText(value.id) || safeText(value.externalId) || `portfolio-${slug(accountName)}-${index}`;
+  const sourceType = asChoice(value.sourceType, ["direct", "indirect"], value.externalId ? "direct" : "indirect");
+  return {
+    ...value,
+    id,
+    externalId: safeText(value.externalId),
+    accountName,
+    accountType: safeText(value.accountType),
+    renewalDate: value.renewalDate ? safeDate(value.renewalDate) : "",
+    currentRate: safeNumber(value.currentRate, 0),
+    baseTarget: safeNumber(value.baseTarget, 0),
+    actualRate: safeNumber(value.actualRate, 0),
+    applicationMethod: normalizePortfolioValue("applicationMethod", value.applicationMethod, mapping),
+    renewalStatus: normalizePortfolioValue("renewalStatus", value.renewalStatus, mapping),
+    lastSpokeWith: safeText(value.lastSpokeWith),
+    lastProductiveContactAt: value.lastProductiveContactAt ? safeDate(value.lastProductiveContactAt) : "",
+    churnRisk: normalizePortfolioValue("churnRisk", value.churnRisk, mapping),
+    localAuthority: safeText(value.localAuthority),
+    phase: safeText(value.phase),
+    licenceType: safeText(value.licenceType),
+    latestUpdate: safeText(value.latestUpdate),
+    notes: String(value.notes || ""),
+    sourceType,
+    lastModifiedSource: safeText(value.lastModifiedSource, sourceType === "direct" ? "excel" : "app"),
+    syncStatus: sourceType === "direct" ? asChoice(value.syncStatus, ["synced", "pending", "conflict", "not_synced"], "synced") : "app_only",
+    pendingSyncFields: asArray(value.pendingSyncFields).filter((field) => PORTFOLIO_FIELDS.includes(field)),
+    createdAt,
+    updatedAt: value.updatedAt ? safeIso(value.updatedAt) : createdAt,
+  };
+}
+
+function cleanPortfolioRecords(value, mapping) {
+  return cleanCollection(value, (record, index) => normalizePortfolioRecord(record, index, mapping));
+}
+
+function isMicrosoft365Configured(integrations, featureFlags = DEFAULT_FEATURE_FLAGS) {
+  const microsoft = cleanIntegrations(integrations).microsoft365;
+  const flags = cleanFeatureFlags(featureFlags);
+  return microsoft.status !== "not_configured" || flags.microsoft365AuthEnabled || flags.microsoftCalendarReadEnabled || flags.calendarPlannerEnabled;
+}
+
+function isMicrosoft365Connected(integrations) {
+  return cleanIntegrations(integrations).microsoft365.status === "connected";
+}
+
+function canUsePersonalCalendar(integrations, featureFlags) {
+  return Boolean(cleanFeatureFlags(featureFlags).microsoftCalendarReadEnabled && isMicrosoft365Connected(integrations));
+}
+
+function canUseCalendarPlanner(integrations, featureFlags) {
+  const flags = cleanFeatureFlags(featureFlags);
+  return Boolean(flags.calendarPlannerEnabled && canUsePersonalCalendar(integrations, flags));
+}
+
+function microsoftStatusLabel(status, tx) {
+  return {
+    not_configured: tx.notConfigured,
+    configured_not_connected: tx.configuredNotConnected,
+    connecting: tx.connecting,
+    connected: tx.connected,
+    admin_approval_required: tx.adminApprovalRequired,
+    permission_denied: tx.permissionDenied,
+    error: tx.integrationError,
+  }[status] || tx.notConfigured;
+}
+
+function microsoftHelperText(status, tx) {
+  return {
+    not_configured: tx.microsoftNotConfiguredHelp,
+    configured_not_connected: tx.microsoftConnectHelp,
+    connecting: tx.connecting,
+    connected: tx.connected,
+    admin_approval_required: tx.microsoftAdminHelp,
+    permission_denied: tx.microsoftPermissionHelp,
+    error: tx.microsoftErrorHelp,
+  }[status] || tx.microsoftNotConfiguredHelp;
+}
+
+function notificationStatusLabel(permission, tx) {
+  return {
+    enabled: tx.enabled,
+    not_enabled: tx.notEnabled,
+    blocked: tx.blocked,
+    unsupported: tx.unsupported,
+  }[permission] || tx.notEnabled;
+}
+
 function normalizeMeeting(value, index) {
   if (!isRecord(value)) return null;
   const createdAt = safeIso(value.createdAt, new Date().toISOString());
+  const id = withId(value, "meeting", index);
+  const date = safeDate(value.date || value.meetingDate || value.microsoftEventStart || createdAt);
+  const time = safeTime(value.time || value.startTime || value.meetingTime);
+  const durationMinutes = clampNumber(value.durationMinutes, 10, 480, 30);
+  const endTime = safeTime(value.endTime) || (time ? minutesToTime(timeToMinutes(time) + durationMinutes) : "");
+  const school = safeText(value.school || value.schoolName || value.client || value.name);
+  const type = safeText(value.type || value.meetingType || value.meetingTitle || value.meetingReason, firstOptionLabel(DEFAULT_OPTION_SETS, "meetingTypes"));
   return {
     ...value,
-    id: withId(value, "meeting", index),
-    school: safeText(value.school || value.client || value.name),
+    id,
+    localMeetingId: safeText(value.localMeetingId, id),
+    school,
+    schoolName: school,
     contactName: safeText(value.contactName || value.contact || value.person),
-    type: safeText(value.type || value.meetingType, firstOptionLabel(DEFAULT_OPTION_SETS, "meetingTypes")),
-    date: safeDate(value.date || value.meetingDate || createdAt),
-    time: safeTime(value.time || value.meetingTime),
+    type,
+    meetingTitle: safeText(value.meetingTitle || value.type || value.meetingType, type),
+    meetingReason: safeText(value.meetingReason || value.type || value.meetingType, type),
+    date,
+    time,
+    startTime: time,
+    endTime,
+    durationMinutes,
     notes: String(value.notes || ""),
     teamsInviteSent: safeBool(value.teamsInviteSent),
     doNotAddToKpis: safeBool(value.doNotAddToKpis),
-    source: safeText(value.source, "Manual"),
-    linkedNoteId: safeText(value.linkedNoteId),
+    source: asChoice(value.source, ["manual", "calendar_slot", "quick-add-meeting", "Phone call", "Follow-up from note", "Follow-up from note", "Meeting note", "Nodyn cyfarfod"], safeText(value.source, "manual")),
+    linkedNoteId: safeText(value.linkedNoteId || value.linkedMeetingNoteId),
+    linkedMeetingNoteId: safeText(value.linkedMeetingNoteId || value.linkedNoteId),
+    calendarReadStatus: asChoice(value.calendarReadStatus, ["not_connected", "sample_data", "connected", "available_when_selected", "conflict_detected"], "not_connected"),
+    microsoftEventId: value.microsoftEventId || null,
+    microsoftEventSubject: value.microsoftEventSubject || null,
+    microsoftEventStart: value.microsoftEventStart || null,
+    microsoftEventEnd: value.microsoftEventEnd || null,
+    lastCalendarCheckedAt: value.lastCalendarCheckedAt || null,
     createdAt,
+    updatedAt: value.updatedAt ? safeIso(value.updatedAt) : createdAt,
   };
 }
 
@@ -1339,12 +1943,14 @@ function normalizeTask(value, index) {
   const createdAt = safeIso(value.createdAt, new Date().toISOString());
   const priority = asChoice(value.priority, PRIORITIES.map((item) => item.value), value.urgent ? "urgent" : "normal");
   const completed = safeBool(value.completed) || value.status === "closed";
+  const title = safeText(value.title || value.task || value.taskText || value.type, firstOptionLabel(DEFAULT_OPTION_SETS, "taskTypes"));
   return {
     ...value,
     id: withId(value, "task", index),
-    title: safeText(value.title || value.task || value.type, firstOptionLabel(DEFAULT_OPTION_SETS, "taskTypes")),
+    title,
+    taskText: safeText(value.taskText || title, title),
     school: safeText(value.school || value.client || value.name),
-    type: safeText(value.type, firstOptionLabel(DEFAULT_OPTION_SETS, "taskTypes")),
+    type: safeText(value.type || title, title),
     notes: String(value.notes || ""),
     dueDate: safeDate(value.dueDate || value.date || createdAt),
     dueTime: safeTime(value.dueTime || value.time),
@@ -1357,6 +1963,7 @@ function normalizeTask(value, index) {
     followUpEmail: safeBool(value.followUpEmail),
     autoFollowUpMeetingId: safeText(value.autoFollowUpMeetingId),
     createdAt,
+    updatedAt: value.updatedAt ? safeIso(value.updatedAt) : createdAt,
   };
 }
 
@@ -1444,7 +2051,8 @@ function normalizeSelfNote(value, index) {
 function normalizeAppState(value) {
   const saved = savedRoot(value);
   const today = todayValue();
-  const tabChoices = ["kpis", "opportunities", "tasks", "notes", "levelUps"];
+  const portfolioMapping = cleanPortfolioMapping(saved.portfolioMapping);
+  const tabChoices = ["kpis", "opportunities", "tasks", "notes", "levelUps", "portfolio"];
   const viewChoices = ["day", "week", "month", "ytd"];
   return {
     version: APP_STATE_VERSION,
@@ -1456,6 +2064,12 @@ function normalizeAppState(value) {
     theme: cleanTheme(saved.theme),
     optionSets: cleanOptionSets(saved.optionSets),
     focusSchedule: cleanFocusSchedule(saved.focusSchedule),
+    featureFlags: cleanFeatureFlags(saved.featureFlags),
+    integrations: cleanIntegrations(saved.integrations),
+    notificationSettings: cleanNotificationSettings(saved.notificationSettings),
+    sectionOrder: cleanSectionOrder(saved.sectionOrder),
+    portfolioMapping,
+    portfolioRecords: cleanPortfolioRecords(saved.portfolioRecords, portfolioMapping),
     meetings: cleanCollection(saved.meetings, normalizeMeeting),
     opportunities: cleanCollection(saved.opportunities, normalizeOpportunity),
     calls: cleanCollection(saved.calls, normalizeCall),
@@ -1527,7 +2141,7 @@ export default function OfflineKpiTracker() {
   const [profileName, setProfileName] = useState(String(initialData.profileName || "Dylan"));
   const [selectedDate, setSelectedDate] = useState(initialData.selectedDate || today);
   const [view, setView] = useState(asChoice(initialData.view, ["day", "week", "month", "ytd"], "week"));
-  const [tab, setTab] = useState(asChoice(initialData.tab, ["kpis", "opportunities", "tasks", "notes", "levelUps"], "kpis"));
+  const [tab, setTab] = useState(asChoice(initialData.tab, ["kpis", "opportunities", "tasks", "notes", "levelUps", "portfolio"], "kpis"));
   const [actionsOpen, setActionsOpen] = useState(false);
   const [headerOpen, setHeaderOpen] = useState(true);
   const [calendarOpen, setCalendarOpen] = useState(false);
@@ -1544,6 +2158,12 @@ export default function OfflineKpiTracker() {
   const [theme, setTheme] = useState(() => cleanTheme(initialData.theme));
   const [optionSets, setOptionSets] = useState(() => cleanOptionSets(initialData.optionSets));
   const [focusSchedule, setFocusSchedule] = useState(() => cleanFocusSchedule(initialData.focusSchedule));
+  const [featureFlags, setFeatureFlags] = useState(() => cleanFeatureFlags(initialData.featureFlags));
+  const [integrations, setIntegrations] = useState(() => cleanIntegrations(initialData.integrations));
+  const [notificationSettings, setNotificationSettings] = useState(() => cleanNotificationSettings(initialData.notificationSettings));
+  const [sectionOrder, setSectionOrder] = useState(() => cleanSectionOrder(initialData.sectionOrder));
+  const [portfolioMapping, setPortfolioMapping] = useState(() => cleanPortfolioMapping(initialData.portfolioMapping));
+  const [portfolioRecords, setPortfolioRecords] = useState(() => cleanPortfolioRecords(initialData.portfolioRecords, cleanPortfolioMapping(initialData.portfolioMapping)));
   const [lastSaved, setLastSaved] = useState(initialData.savedAt ? formatSaveTime(initialData.savedAt) : "");
   const [meetings, setMeetings] = useState(asArray(initialData.meetings));
   const [opportunities, setOpportunities] = useState(asArray(initialData.opportunities));
@@ -1554,13 +2174,15 @@ export default function OfflineKpiTracker() {
   const [notes, setNotes] = useState(asArray(initialData.notes));
   const [notesToSelf, setNotesToSelf] = useState(asArray(initialData.notesToSelf));
   const [dismissed, setDismissed] = useState({});
+  const [taskDismissed, setTaskDismissed] = useState({});
 
   const [meetingForm, setMeetingForm] = useState({ school: "", contactName: "", type: firstOptionLabel(optionSets, "meetingTypes"), date: selectedDate, time: "", notes: "", teamsInviteSent: false, doNotAddToKpis: false });
   const [oppForm, setOppForm] = useState({ school: "", name: "", opportunityType: firstOptionLabel(optionSets, "opportunityTypes"), value: "", endDate: selectedDate });
   const [callForm, setCallForm] = useState({ school: "", reason: firstOptionLabel(optionSets, "callReasons"), outcome: firstOptionLabel(optionSets, "callOutcomes"), notes: "", doNotAddToKpis: false });
   const [levelUpForm, setLevelUpForm] = useState({ school: "" });
-  const [taskForm, setTaskForm] = useState({ school: "", type: firstOptionLabel(optionSets, "taskTypes"), otherTitle: "", notes: "", dueDate: selectedDate, dueTime: "", priority: "normal", urgent: false });
+  const [taskForm, setTaskForm] = useState({ school: "", type: "", taskText: "", otherTitle: "", notes: "", dueDate: selectedDate, dueTime: "", priority: "normal", urgent: false });
   const [noteForm, setNoteForm] = useState({ school: "", notes: "" });
+  const [portfolioForm, setPortfolioForm] = useState({ accountName: "", renewalDate: selectedDate, applicationMethod: "Unknown", renewalStatus: "Not started", churnRisk: "Unknown" });
   const [selfNoteText, setSelfNoteText] = useState("");
 
   const period = useMemo(() => getPeriod(view, selectedDate), [view, selectedDate]);
@@ -1619,6 +2241,12 @@ export default function OfflineKpiTracker() {
     setTheme(cleanTheme(saved.theme));
     setOptionSets(cleanOptionSets(saved.optionSets));
     setFocusSchedule(cleanFocusSchedule(saved.focusSchedule));
+    setFeatureFlags(cleanFeatureFlags(saved.featureFlags));
+    setIntegrations(cleanIntegrations(saved.integrations));
+    setNotificationSettings(cleanNotificationSettings(saved.notificationSettings));
+    setSectionOrder(cleanSectionOrder(saved.sectionOrder));
+    setPortfolioMapping(cleanPortfolioMapping(saved.portfolioMapping));
+    setPortfolioRecords(cleanPortfolioRecords(saved.portfolioRecords, cleanPortfolioMapping(saved.portfolioMapping)));
     setMeetings(asArray(saved.meetings));
     setOpportunities(asArray(saved.opportunities));
     setCalls(asArray(saved.calls));
@@ -1639,6 +2267,19 @@ export default function OfflineKpiTracker() {
       return mins <= 15 && mins >= -5;
     });
   }, [meetings, dismissed]);
+
+  const taskAlerts = useMemo(() => {
+    const now = new Date();
+    return tasks.filter((task) => {
+      if (task.completed || taskDismissed[task.id] || !notificationSettings.taskReminders) return false;
+      if (!task.dueDate || !task.dueTime) return false;
+      if (taskPriority(task) === "low" && !notificationSettings.urgentTaskReminders) return false;
+      const target = new Date(task.dueDate + "T" + task.dueTime + ":00");
+      const mins = (target.getTime() - now.getTime()) / 60000;
+      const isUrgent = taskPriority(task) === "urgent";
+      return (mins <= 15 && mins >= -5) || (isUrgent && mins <= 60 && mins >= -5);
+    });
+  }, [tasks, taskDismissed, notificationSettings]);
 
   useEffect(() => {
     const existing = new Set(tasks.map((task) => task.autoFollowUpMeetingId).filter(Boolean));
@@ -1673,7 +2314,7 @@ export default function OfflineKpiTracker() {
     return undefined;
   }, [meetings, tasks]);
 
-  const currentData = (savedAt = new Date().toISOString()) => normalizeAppState({ version: APP_STATE_VERSION, language, profileName, selectedDate, view, tab, theme, optionSets, focusSchedule, meetings, opportunities, calls, levelUps, adjustments, tasks, notes, notesToSelf, savedAt });
+  const currentData = (savedAt = new Date().toISOString()) => normalizeAppState({ version: APP_STATE_VERSION, language, profileName, selectedDate, view, tab, theme, optionSets, focusSchedule, featureFlags, integrations, notificationSettings, sectionOrder, portfolioMapping, portfolioRecords, meetings, opportunities, calls, levelUps, adjustments, tasks, notes, notesToSelf, savedAt });
 
   useEffect(() => {
     const saved = writeStoredData(currentData());
@@ -1699,7 +2340,7 @@ export default function OfflineKpiTracker() {
       }
     }, 650);
     return () => window.clearTimeout(timer);
-  }, [language, profileName, selectedDate, view, tab, theme, optionSets, focusSchedule, meetings, opportunities, calls, levelUps, adjustments, tasks, notes, notesToSelf, firebaseUser, authReady, cloudLoaded, tx]);
+  }, [language, profileName, selectedDate, view, tab, theme, optionSets, focusSchedule, featureFlags, integrations, notificationSettings, sectionOrder, portfolioMapping, portfolioRecords, meetings, opportunities, calls, levelUps, adjustments, tasks, notes, notesToSelf, firebaseUser, authReady, cloudLoaded, tx]);
 
   useEffect(() => onAuthStateChanged(auth, async (user) => {
     setFirebaseUser(user);
@@ -1809,12 +2450,12 @@ export default function OfflineKpiTracker() {
 
   const addTask = (options = {}) => {
     const title = taskTitleFromForm(taskForm, tx);
-    if (!required([taskForm.school, taskForm.type, title, taskForm.dueDate, taskForm.dueTime])) return;
+    if (!required([taskForm.school, title, taskForm.dueDate, taskForm.dueTime])) return;
     const completed = Boolean(options.completed);
     const stamp = new Date().toISOString();
-    const task = normalizeTask({ id: uid(), title, school: taskForm.school.trim(), type: taskForm.type, notes: taskForm.notes || "", dueDate: taskForm.dueDate, dueTime: taskForm.dueTime, priority: taskForm.priority || "normal", urgent: taskForm.priority === "urgent", completed, status: completed ? "closed" : "open", completedAt: completed ? stamp : null, createdAt: stamp }, 0);
+    const task = normalizeTask({ id: uid(), title, taskText: title, school: taskForm.school.trim(), type: title, notes: taskForm.notes || "", dueDate: taskForm.dueDate, dueTime: taskForm.dueTime, priority: taskForm.priority || "normal", urgent: taskForm.priority === "urgent", completed, status: completed ? "closed" : "open", completedAt: completed ? stamp : null, createdAt: stamp }, 0);
     setTasks((current) => [task, ...current]);
-    setTaskForm({ school: "", type: firstOptionLabel(optionSets, "taskTypes"), otherTitle: "", notes: "", dueDate: selectedDate, dueTime: "", priority: "normal", urgent: false });
+    setTaskForm({ school: "", type: "", taskText: "", otherTitle: "", notes: "", dueDate: selectedDate, dueTime: "", priority: "normal", urgent: false });
   };
 
   const updateTask = (id, patch) => {
@@ -1864,6 +2505,49 @@ export default function OfflineKpiTracker() {
 
   const toggleLevelUp = (id, field) => {
     setLevelUps((current) => current.map((item) => item.id === id ? { ...item, [field]: toggleLiveStatus(item[field]) } : item));
+  };
+
+  const addIndirectPortfolioRecord = () => {
+    if (!required([portfolioForm.accountName])) return;
+    const record = normalizePortfolioRecord({
+      id: uid(),
+      ...portfolioForm,
+      sourceType: "indirect",
+      lastModifiedSource: "app",
+      syncStatus: "app_only",
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    }, 0, portfolioMapping);
+    setPortfolioRecords((current) => [record, ...current]);
+    setPortfolioForm({ accountName: "", renewalDate: selectedDate, applicationMethod: "Unknown", renewalStatus: "Not started", churnRisk: "Unknown" });
+  };
+
+  const updatePortfolioRecord = (id, patch) => {
+    setPortfolioRecords((current) => current.map((record) => {
+      if (record.id !== id) return record;
+      const mappedFields = Object.keys(patch).filter((field) => PORTFOLIO_FIELDS.includes(field) && portfolioMapping.columnMap[field]);
+      const next = normalizePortfolioRecord({
+        ...record,
+        ...patch,
+        lastModifiedSource: "app",
+        updatedAt: new Date().toISOString(),
+      }, 0, portfolioMapping) || { ...record, ...patch, accountName: record.accountName, updatedAt: new Date().toISOString() };
+      if (next.sourceType === "direct" && mappedFields.length) {
+        next.syncStatus = "pending";
+        next.pendingSyncFields = [...new Set([...asArray(record.pendingSyncFields), ...mappedFields])];
+      }
+      return next;
+    }));
+  };
+
+  const syncPortfolioNow = () => {
+    const stamp = new Date().toISOString();
+    setPortfolioRecords((current) => current.map((record) => record.syncStatus === "pending" ? { ...record, syncStatus: "synced", pendingSyncFields: [], updatedAt: stamp } : record));
+    setPortfolioMapping((current) => cleanPortfolioMapping({
+      ...current,
+      lastSyncAt: stamp,
+      syncLog: [{ at: stamp, message: "Manual Sync Now prepared mapped changes. Excel write-back is not connected yet." }, ...asArray(current.syncLog)].slice(0, 25),
+    }));
   };
 
   const updateOpp = (id, patch) => {
@@ -2051,32 +2735,35 @@ export default function OfflineKpiTracker() {
   }
 
   if (!firebaseUser) {
-    return <AuthGate tx={tx} signInEmail={signInEmail} createEmailAccount={createEmailAccount} resetPassword={resetPassword} signInGoogle={signInGoogle} />;
+    return <AuthGate tx={tx} signInEmail={signInEmail} createEmailAccount={createEmailAccount} resetPassword={resetPassword} signInGoogle={signInGoogle} featureFlags={featureFlags} />;
   }
 
   return (
     <div className="app-shell min-h-screen p-2 sm:p-4" style={themeStyle(theme)}>
       <div className="app-bg fixed inset-0 -z-10" />
       <div className="mx-auto max-w-[1500px]">
-        <Header tx={tx} language={language} profileName={profileName} firebaseUser={firebaseUser} cloudStatus={cloudStatus} signInGoogle={signInGoogle} signOutGoogle={signOutGoogle} period={period} view={view} setView={setView} selectedDate={selectedDate} setSelectedDate={setSelectedDate} calendarOpen={calendarOpen} setCalendarOpen={setCalendarOpen} actionsOpen={actionsOpen} setActionsOpen={setActionsOpen} headerOpen={headerOpen} setHeaderOpen={setHeaderOpen} editTotals={editTotals} setEditTotals={setEditTotals} jump={jump} saveNow={saveNow} saveAs={saveAs} exportReport={exportReport} printReport={printReport} importBackup={importBackup} backup={() => download(cleanName(period.file) + " backup.json", JSON.stringify(currentData(), null, 2), "application/json;charset=utf-8")} reset={() => { if (confirm(tx.resetWarning)) { setMeetings([]); setOpportunities([]); setCalls([]); setLevelUps([]); setTasks([]); setNotes([]); setNotesToSelf([]); setAdjustments([]); setFocusSchedule(DEFAULT_FOCUS_SCHEDULE); } }} lastSaved={lastSaved} openSettings={() => setSettingsOpen(true)} />
+        <Header tx={tx} language={language} profileName={profileName} firebaseUser={firebaseUser} cloudStatus={cloudStatus} signInGoogle={signInGoogle} signOutGoogle={signOutGoogle} period={period} view={view} setView={setView} selectedDate={selectedDate} setSelectedDate={setSelectedDate} calendarOpen={calendarOpen} setCalendarOpen={setCalendarOpen} actionsOpen={actionsOpen} setActionsOpen={setActionsOpen} headerOpen={headerOpen} setHeaderOpen={setHeaderOpen} editTotals={editTotals} setEditTotals={setEditTotals} jump={jump} saveNow={saveNow} saveAs={saveAs} exportReport={exportReport} printReport={printReport} importBackup={importBackup} backup={() => download(cleanName(period.file) + " backup.json", JSON.stringify(currentData(), null, 2), "application/json;charset=utf-8")} reset={() => { if (confirm(tx.resetWarning)) { setMeetings([]); setOpportunities([]); setCalls([]); setLevelUps([]); setTasks([]); setNotes([]); setNotesToSelf([]); setAdjustments([]); setPortfolioRecords([]); setFocusSchedule(DEFAULT_FOCUS_SCHEDULE); } }} lastSaved={lastSaved} openSettings={() => setSettingsOpen(true)} />
 
         {offlinePrompt && <OfflineSavePrompt tx={tx} saveOffline={saveOfflineFromPrompt} cancel={cancelOfflinePrompt} />}
-        {settingsOpen && <Settings tx={tx} language={language} setLanguage={setLanguage} profileName={profileName} setProfileName={setProfileName} theme={theme} setTheme={setTheme} optionSets={optionSets} setOptionSets={setOptionSets} close={() => setSettingsOpen(false)} />}
+        {settingsOpen && <Settings tx={tx} language={language} setLanguage={setLanguage} profileName={profileName} setProfileName={setProfileName} theme={theme} setTheme={setTheme} optionSets={optionSets} setOptionSets={setOptionSets} integrations={integrations} featureFlags={featureFlags} notificationSettings={notificationSettings} setNotificationSettings={setNotificationSettings} portfolioMapping={portfolioMapping} setPortfolioMapping={setPortfolioMapping} close={() => setSettingsOpen(false)} />}
         {meetingAlerts.length > 0 && <Reminder tx={tx} alerts={meetingAlerts} dismiss={() => setDismissed(Object.fromEntries(meetingAlerts.map((m) => [m.id, true])))} />}
+        {taskAlerts.length > 0 && <TaskDeadlineReminder tx={tx} tasks={taskAlerts} dismiss={() => setTaskDismissed(Object.fromEntries(taskAlerts.map((task) => [task.id, true])))} />}
         <CurrentFocus tx={tx} schedule={focusSchedule} setSchedule={setFocusSchedule} />
         <MeetingsToday tx={tx} optionSets={optionSets} today={meetingsTodayDate} meetings={todayMeetings} updateMeeting={updateMeeting} removeMeeting={(id) => setMeetings((current) => current.filter((m) => m.id !== id))} />
         <SalesSummaryBar tx={tx} salesSummary={salesSummary} />
         <Tabs tx={tx} tab={tab} setTab={setTab} />
 
-        {tab === "kpis" && <Kpis tx={tx} optionSets={optionSets} editTotals={editTotals} totals={totals} view={view} period={period} setTotal={setTotal} addAdj={(key) => setAdjustments((current) => [{ id: uid(), key, amount: 1, date: selectedDate, note: "Quick click" }, ...current])} meetingForm={meetingForm} setMeetingForm={setMeetingForm} addMeeting={addMeeting} callForm={callForm} setCallForm={setCallForm} addCall={addCall} meetings={periodMeetings} calls={periodCalls} removeMeeting={(id) => setMeetings((current) => current.filter((m) => m.id !== id))} removeCall={(id) => setCalls((current) => current.filter((c) => c.id !== id))} toggleInvite={(id) => updateMeeting(id, { teamsInviteSent: !meetings.find((m) => m.id === id)?.teamsInviteSent })} />}
+        {tab === "kpis" && <Kpis tx={tx} optionSets={optionSets} editTotals={editTotals} totals={totals} view={view} period={period} setTotal={setTotal} addAdj={(key) => setAdjustments((current) => [{ id: uid(), key, amount: 1, date: selectedDate, note: "Quick click" }, ...current])} meetingForm={meetingForm} setMeetingForm={setMeetingForm} addMeeting={addMeeting} callForm={callForm} setCallForm={setCallForm} addCall={addCall} meetings={periodMeetings} calls={periodCalls} removeMeeting={(id) => setMeetings((current) => current.filter((m) => m.id !== id))} removeCall={(id) => setCalls((current) => current.filter((c) => c.id !== id))} toggleInvite={(id) => updateMeeting(id, { teamsInviteSent: !meetings.find((m) => m.id === id)?.teamsInviteSent })} sectionOrder={sectionOrder.kpis} setSectionOrder={(order) => setSectionOrder((current) => ({ ...current, kpis: order }))} />}
 
-        {tab === "opportunities" && <OpportunitiesTab tx={tx} optionSets={optionSets} form={oppForm} setForm={setOppForm} add={addOpportunity} opportunities={periodOpps} remove={(id) => setOpportunities((current) => current.filter((o) => o.id !== id))} updateOpp={updateOpp} />}
+        {tab === "opportunities" && <OpportunitiesTab tx={tx} optionSets={optionSets} form={oppForm} setForm={setOppForm} add={addOpportunity} opportunities={periodOpps} remove={(id) => setOpportunities((current) => current.filter((o) => o.id !== id))} updateOpp={updateOpp} sectionOrder={sectionOrder.opportunities} setSectionOrder={(order) => setSectionOrder((current) => ({ ...current, opportunities: order }))} />}
 
-        {tab === "tasks" && <Tasks tx={tx} optionSets={optionSets} live={liveTasks} closed={closedTasks} form={taskForm} setForm={setTaskForm} add={addTask} update={updateTask} toggle={toggleTask} remove={(id) => setTasks((current) => current.filter((task) => task.id !== id))} notes={notes} openNote={() => setTab("notes")} totals={totals} salesSummary={salesSummary} meetings={periodMeetings} calls={periodCalls} levelUps={periodLevelUps} />}
+        {tab === "tasks" && <Tasks tx={tx} optionSets={optionSets} live={liveTasks} closed={closedTasks} form={taskForm} setForm={setTaskForm} add={addTask} update={updateTask} toggle={toggleTask} remove={(id) => setTasks((current) => current.filter((task) => task.id !== id))} notes={notes} openNote={() => setTab("notes")} totals={totals} salesSummary={salesSummary} meetings={periodMeetings} calls={periodCalls} levelUps={periodLevelUps} sectionOrder={sectionOrder.tasks} setSectionOrder={(order) => setSectionOrder((current) => ({ ...current, tasks: order }))} />}
 
-        {tab === "notes" && <Notes tx={tx} optionSets={optionSets} notes={periodNotes} notesToSelf={periodSelfNotes} selfNoteText={selfNoteText} setSelfNoteText={setSelfNoteText} addSelfNote={addSelfNote} removeSelfNote={(id) => setNotesToSelf((current) => current.filter((note) => note.id !== id))} tasks={tasks} form={noteForm} setForm={setNoteForm} addNote={addNote} remove={(id) => setNotes((current) => current.filter((note) => note.id !== id))} toggleTask={toggleTask} />}
+        {tab === "notes" && <Notes tx={tx} optionSets={optionSets} integrations={integrations} featureFlags={featureFlags} openIntegrationSettings={() => setSettingsOpen(true)} notes={periodNotes} notesToSelf={periodSelfNotes} selfNoteText={selfNoteText} setSelfNoteText={setSelfNoteText} addSelfNote={addSelfNote} removeSelfNote={(id) => setNotesToSelf((current) => current.filter((note) => note.id !== id))} tasks={tasks} form={noteForm} setForm={setNoteForm} addNote={addNote} remove={(id) => setNotes((current) => current.filter((note) => note.id !== id))} toggleTask={toggleTask} sectionOrder={sectionOrder.notes} setSectionOrder={(order) => setSectionOrder((current) => ({ ...current, notes: order }))} />}
 
-        {tab === "levelUps" && <LevelUps tx={tx} levelUps={periodLevelUps} form={levelUpForm} setForm={setLevelUpForm} add={addLevelUp} toggle={toggleLevelUp} remove={(id) => setLevelUps((current) => current.filter((item) => item.id !== id))} />}
+        {tab === "levelUps" && <LevelUps tx={tx} levelUps={periodLevelUps} form={levelUpForm} setForm={setLevelUpForm} add={addLevelUp} toggle={toggleLevelUp} remove={(id) => setLevelUps((current) => current.filter((item) => item.id !== id))} sectionOrder={sectionOrder.levelUps} setSectionOrder={(order) => setSectionOrder((current) => ({ ...current, levelUps: order }))} />}
+
+        {tab === "portfolio" && <PortfolioTab tx={tx} records={portfolioRecords} mapping={portfolioMapping} form={portfolioForm} setForm={setPortfolioForm} addIndirect={addIndirectPortfolioRecord} updateRecord={updatePortfolioRecord} syncNow={syncPortfolioNow} remove={(id) => setPortfolioRecords((current) => current.filter((record) => record.id !== id))} sectionOrder={sectionOrder.portfolio} setSectionOrder={(order) => setSectionOrder((current) => ({ ...current, portfolio: order }))} />}
       </div>
     </div>
   );
@@ -2086,9 +2773,18 @@ function GoogleMark() {
   return <svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5"><path fill="#4285F4" d="M21.6 12.2c0-.7-.1-1.4-.2-2H12v3.8h5.4c-.2 1.2-.9 2.2-1.9 2.9v2.4h3.1c1.8-1.7 3-4.1 3-7.1Z" /><path fill="#34A853" d="M12 22c2.7 0 5-.9 6.6-2.5l-3.1-2.4c-.9.6-2 .9-3.5.9-2.6 0-4.8-1.8-5.6-4.1H3.2v2.5C4.8 19.7 8.1 22 12 22Z" /><path fill="#FBBC05" d="M6.4 13.9c-.2-.6-.3-1.2-.3-1.9s.1-1.3.3-1.9V7.6H3.2C2.4 8.9 2 10.4 2 12s.4 3.1 1.2 4.4l3.2-2.5Z" /><path fill="#EA4335" d="M12 6c1.5 0 2.8.5 3.8 1.5l2.8-2.8C16.9 3 14.7 2 12 2 8.1 2 4.8 4.3 3.2 7.6l3.2 2.5C7.2 7.8 9.4 6 12 6Z" /></svg>;
 }
 
-function AuthGate({ tx, signInEmail, createEmailAccount, resetPassword, signInGoogle }) {
+function MicrosoftMark() {
+  return <span aria-hidden="true" className="microsoft-mark"><i className="bg-[#f25022]" /><i className="bg-[#7fba00]" /><i className="bg-[#00a4ef]" /><i className="bg-[#ffb900]" /></span>;
+}
+
+function LockedMicrosoftButton({ label, tx, disabled = true }) {
+  return <button className={"microsoft-btn " + (disabled ? "locked" : "")} type="button" disabled={disabled} title={disabled ? tx.microsoftAuthLocked : ""}><MicrosoftMark /><span>{label}</span>{disabled && <Fa icon={faLock} />}</button>;
+}
+
+function AuthGate({ tx, signInEmail, createEmailAccount, resetPassword, signInGoogle, featureFlags }) {
   const [mode, setMode] = useState("signin");
   const [form, setForm] = useState({ firstName: "", lastName: "", jobTitle: "", email: "", password: "" });
+  const flags = cleanFeatureFlags(featureFlags);
   const update = (field) => (event) => setForm((current) => ({ ...current, [field]: event.target.value }));
   const submit = (event) => {
     event.preventDefault();
@@ -2123,6 +2819,15 @@ function AuthGate({ tx, signInEmail, createEmailAccount, resetPassword, signInGo
           <button className="btn primary w-full" type="submit">{mode === "create" ? tx.createAccount : tx.signIn}</button>
         </form>
         <button className="google-btn mt-3" onClick={signInGoogle}><GoogleMark /><span>{mode === "create" ? tx.googleCreateAccount : tx.signInGoogle}</span></button>
+        <div className="auth-divider"><span>{tx.or}</span></div>
+        <div className="grid gap-2">
+          {mode === "create" ? (
+            <LockedMicrosoftButton label={tx.createMicrosoft365} tx={tx} disabled={!flags.microsoft365AccountCreationEnabled} />
+          ) : (
+            <LockedMicrosoftButton label={tx.signInMicrosoft365} tx={tx} disabled={!flags.microsoft365AuthEnabled} />
+          )}
+          <p className="text-center text-[11px] font-bold muted">{tx.microsoftAuthLocked}</p>
+        </div>
         <div className="mt-3 grid gap-2 text-center text-sm font-bold">
           {mode === "signin" ? (
             <>
@@ -2174,7 +2879,213 @@ function OptionSetEditor({ tx, setKey, options, setOptionSets }) {
   return <section className="rounded-3xl bg-white p-3"><h3 className="brand brand-text">{OPTION_SET_LABELS[setKey]}</h3><div className="mt-2 grid gap-2">{options.map((option) => <div className="rounded-2xl brand-soft p-2" key={option.id}><div className="grid grid-cols-[1fr_auto] gap-2"><div className="grid gap-2 sm:grid-cols-2"><label className="grid gap-1 text-[10px] font-black uppercase muted">{tx.englishLabel}<input className="input" value={option.label} onChange={(e) => updateOption(option.id, { label: e.target.value })} /></label><label className="grid gap-1 text-[10px] font-black uppercase muted">{tx.cymraegLabel}<input className="input" value={option.labelCy || ""} onChange={(e) => updateOption(option.id, { labelCy: e.target.value })} /></label></div><button className="btn soft text-red-700" onClick={() => deleteOption(option.id)}><Fa icon={faTrashCan} /></button></div>{setKey === "callOutcomes" && <div className="mt-2 grid gap-2 text-xs font-black uppercase muted sm:grid-cols-2"><label><input type="checkbox" checked={Boolean(option.productive)} onChange={(e) => updateOption(option.id, { productive: e.target.checked })} /> {tx.productive}</label><label><input type="checkbox" checked={Boolean(option.createsMeeting)} onChange={(e) => updateOption(option.id, { createsMeeting: e.target.checked })} /> {tx.createsMeeting}</label></div>}</div>)}</div><div className="mt-2 grid grid-cols-[1fr_auto] gap-2"><div className="grid gap-2 sm:grid-cols-2"><input className="input" placeholder={`${tx.addOption} - ${tx.englishLabel}`} value={newLabel} onChange={(e) => setNewLabel(e.target.value)} /><input className="input" placeholder={`${tx.addOption} - ${tx.cymraegLabel}`} value={newLabelCy} onChange={(e) => setNewLabelCy(e.target.value)} /></div><button className="btn primary" onClick={addOption}><Fa icon={faCirclePlus} /></button></div></section>;
 }
 
-function Settings({ tx, language, setLanguage, profileName, setProfileName, theme, setTheme, optionSets, setOptionSets, close }) {
+function Microsoft365IntegrationCard({ tx, integrations, featureFlags }) {
+  const microsoft = cleanIntegrations(integrations).microsoft365;
+  const flags = cleanFeatureFlags(featureFlags);
+  const configured = isMicrosoft365Configured(integrations, flags);
+  const connected = isMicrosoft365Connected(integrations);
+  const canConnect = configured && microsoft.status === "configured_not_connected" && flags.microsoft365AuthEnabled;
+  return (
+    <section className="panel shadow-card p-3">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="text-[10px] font-black uppercase brand-accent">{tx.integrations}</p>
+          <h2 className="brand brand-text">{tx.microsoft365}</h2>
+          <p className="text-xs muted">{tx.microsoftDescription}</p>
+        </div>
+        <span className={"status-pill " + (connected ? "status-live" : "status-neutral")}><Fa icon={connected ? faCheck : faLock} /> {microsoftStatusLabel(microsoft.status, tx)}</span>
+      </div>
+      <div className="mt-3 grid gap-3">
+        <div className="rounded-2xl brand-soft p-3">
+          <b className="text-xs uppercase brand-text">{tx.requiredPermissions}</b>
+          <ul className="mt-2 list-disc pl-5 text-xs muted">
+            <li>{tx.microsoftPermissionSignIn}</li>
+            <li>{tx.microsoftPermissionCalendar}</li>
+          </ul>
+        </div>
+        <div className="rounded-2xl brand-soft p-3">
+          <b className="text-xs uppercase brand-text">{tx.availableFeatures}</b>
+          <div className="mt-2 grid gap-1 text-xs muted">
+            <span><Fa icon={connected ? faCheck : faLock} /> {tx.personalCalendarSync}</span>
+            <span><Fa icon={connected ? faCheck : faLock} /> {tx.planUsingCalendar}</span>
+            <span><Fa icon={connected ? faCheck : faLock} /> {tx.calendarConflictDetection}</span>
+          </div>
+        </div>
+        {connected && <div className="rounded-2xl bg-green-50 p-3 text-xs text-green-800"><b>{microsoft.displayName}</b><br />{microsoft.email}</div>}
+        <div className="rounded-2xl bg-white p-3">
+          <b className="text-xs uppercase brand-text">{tx.connectionControls}</b>
+          <div className="mt-2 grid gap-2 sm:grid-cols-3">
+            <button className="btn soft" disabled><Fa icon={faLock} /> <span>{tx.configureMicrosoft365}</span></button>
+            <button className={"btn " + (canConnect ? "primary" : "soft")} disabled={!canConnect}><Fa icon={faLock} /> <span>{tx.connectMicrosoft365}</span></button>
+            <button className="btn soft" disabled><Fa icon={faLock} /> <span>{tx.testConnection}</span></button>
+          </div>
+          <p className="mt-2 text-xs muted">{microsoftHelperText(microsoft.status, tx)}</p>
+        </div>
+        <div className="rounded-2xl bg-white p-3">
+          <b className="text-xs uppercase brand-text">{tx.dataAccessExplanation}</b>
+          <p className="mt-1 text-xs muted">{tx.microsoftDataNote}</p>
+          <div className="mt-2 grid grid-cols-3 gap-2 text-[11px] font-black">
+            <span className="status-pill status-neutral">{tx.authentication}: {tx.locked}</span>
+            <span className="status-pill status-neutral">{tx.calendarSync}: {tx.locked}</span>
+            <span className="status-pill status-neutral">{tx.accountCreation}: {tx.locked}</span>
+          </div>
+          <p className="mt-2 text-xs muted">{tx.reason}: {tx.requiresApproval}</p>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function MappingValueEditor({ title, options, values, update }) {
+  const [rawValue, setRawValue] = useState("");
+  const [standardValue, setStandardValue] = useState(options[0] || "Unknown");
+  const entries = Object.entries(values || {});
+  const add = () => {
+    const raw = rawValue.trim();
+    if (!raw) return;
+    update({ ...values, [raw]: standardValue });
+    setRawValue("");
+    setStandardValue(options[0] || "Unknown");
+  };
+  const remove = (key) => {
+    const next = { ...values };
+    delete next[key];
+    update(next);
+  };
+  return (
+    <div className="rounded-2xl bg-white p-3">
+      <b className="text-xs uppercase brand-text">{title}</b>
+      <div className="mt-2 grid gap-2">
+        {entries.map(([raw, mapped]) => (
+          <div key={raw} className="grid gap-2 sm:grid-cols-[1fr_1fr_auto]">
+            <input className="input" value={raw} readOnly title={raw} />
+            <select className="input" value={mapped} onChange={(e) => update({ ...values, [raw]: e.target.value })}>{options.map((option) => <option key={option}>{option}</option>)}</select>
+            <button className="btn soft text-red-700" onClick={() => remove(raw)}><Fa icon={faTrashCan} /></button>
+          </div>
+        ))}
+        <div className="grid gap-2 sm:grid-cols-[1fr_1fr_auto]">
+          <input className="input" placeholder="Spreadsheet value" value={rawValue} onChange={(e) => setRawValue(e.target.value)} />
+          <select className="input" value={standardValue} onChange={(e) => setStandardValue(e.target.value)}>{options.map((option) => <option key={option}>{option}</option>)}</select>
+          <button className="btn primary" onClick={add}><Fa icon={faCirclePlus} /></button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function PortfolioSyncSettings({ tx, mapping, setMapping }) {
+  const clean = cleanPortfolioMapping(mapping);
+  const detectedText = clean.detectedColumns.join(", ");
+  const update = (patch) => setMapping((current) => cleanPortfolioMapping({ ...current, ...patch }));
+  const updateColumn = (field, column) => update({ columnMap: { ...clean.columnMap, [field]: column } });
+  const updateValueMap = (field, values) => update({ valueMaps: { ...clean.valueMaps, [field]: values } });
+  const addLog = (message) => update({ syncLog: [{ at: new Date().toISOString(), message }, ...clean.syncLog].slice(0, 25) });
+  return (
+    <section className="panel shadow-card p-3">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="text-[10px] font-black uppercase brand-accent">{tx.integrations}</p>
+          <h2 className="brand brand-text">{tx.excelPortfolioSync}</h2>
+          <p className="text-xs muted">{tx.largerScreenSetup}</p>
+        </div>
+        <span className="status-pill status-neutral">{clean.connectionStatus.replaceAll("_", " ")}</span>
+      </div>
+      <div className="mt-3 grid gap-3">
+        <div className="rounded-2xl brand-soft p-3">
+          <b className="text-xs uppercase brand-text">{tx.activeSource}</b>
+          <div className="mt-2 grid grid-cols-2 gap-2">
+            <button className={"btn " + (clean.activeSource === "personal" ? "primary" : "soft")} onClick={() => update({ activeSource: "personal" })}>{tx.usingPersonalPortfolio}</button>
+            <button className={"btn " + (clean.activeSource === "team" ? "primary" : "soft")} onClick={() => update({ activeSource: "team" })}>{tx.usingTeamPortfolio}</button>
+          </div>
+          {clean.activeSource === "team" && <input className="input mt-2" placeholder="Team name" value={clean.teamName} onChange={(e) => update({ teamName: e.target.value })} />}
+        </div>
+        <div className="rounded-2xl bg-white p-3">
+          <b className="text-xs uppercase brand-text">{tx.mappingWizard}</b>
+          <div className="mt-2 grid gap-2 sm:grid-cols-3">
+            <button className="btn soft" disabled><Fa icon={faLock} /> <span>{tx.connectMicrosoftPlaceholder}</span></button>
+            <button className="btn soft" disabled><Fa icon={faLock} /> <span>{tx.selectWorkbookPlaceholder}</span></button>
+            <button className="btn soft" disabled><Fa icon={faLock} /> <span>{tx.selectWorksheetPlaceholder}</span></button>
+          </div>
+          <div className="mt-2 grid gap-2 sm:grid-cols-2">
+            <input className="input" placeholder="Workbook name" value={clean.workbookName} onChange={(e) => update({ workbookName: e.target.value })} />
+            <input className="input" placeholder="Worksheet/table" value={clean.worksheetName} onChange={(e) => update({ worksheetName: e.target.value })} />
+          </div>
+          <label className="mt-2 grid gap-1 text-xs font-black uppercase muted">{tx.detectColumns}<textarea className="input min-h-[70px] normal-case" value={detectedText} onChange={(e) => update({ detectedColumns: e.target.value.split(",").map((item) => item.trim()).filter(Boolean) })} /></label>
+          <div className="mt-2 grid gap-2 text-xs font-black sm:grid-cols-3">
+            <label className="rounded-2xl brand-soft p-2">{tx.headerRow}<input className="input mt-1" type="number" min="1" value={clean.headerRow} onChange={(e) => update({ headerRow: e.target.value })} /></label>
+            <label className="rounded-2xl brand-soft p-2"><input type="checkbox" checked={clean.ignoreRepeatedHeaders} onChange={(e) => update({ ignoreRepeatedHeaders: e.target.checked })} /> {tx.ignoreRepeatedHeaders}</label>
+            <label className="rounded-2xl brand-soft p-2"><input type="checkbox" checked={clean.ignoreBlankRows} onChange={(e) => update({ ignoreBlankRows: e.target.checked })} /> {tx.ignoreBlankRows}</label>
+          </div>
+        </div>
+        <div className="rounded-2xl brand-soft p-3">
+          <b className="text-xs uppercase brand-text">{tx.columnMapping}</b>
+          {!clean.columnMap.externalId && <p className="mt-1 rounded-2xl bg-white p-2 text-xs muted">{tx.lessReliableId}</p>}
+          <div className="mt-2 grid gap-2">
+            {PORTFOLIO_FIELDS.map((field) => (
+              <label key={field} className="grid gap-1 text-[10px] font-black uppercase muted sm:grid-cols-[1fr_1.4fr] sm:items-center">
+                <span>{tx[field] || field}{PORTFOLIO_REQUIRED_FIELDS.includes(field) ? " *" : ""}</span>
+                <select className="input normal-case" value={clean.columnMap[field] || ""} onChange={(e) => updateColumn(field, e.target.value)}>
+                  <option value="">Not mapped</option>
+                  {clean.detectedColumns.map((column) => <option key={column} value={column}>{column}</option>)}
+                </select>
+              </label>
+            ))}
+          </div>
+        </div>
+        <div className="grid gap-3">
+          <MappingValueEditor title={`${tx.valueMapping}: ${tx.applicationMethod}`} options={APPLICATION_METHODS} values={clean.valueMaps.applicationMethod} update={(values) => updateValueMap("applicationMethod", values)} />
+          <MappingValueEditor title={`${tx.valueMapping}: ${tx.renewalStatus}`} options={RENEWAL_STATUSES} values={clean.valueMaps.renewalStatus} update={(values) => updateValueMap("renewalStatus", values)} />
+        </div>
+        <div className="rounded-2xl bg-white p-3">
+          <div className="grid gap-2 sm:grid-cols-2">
+            <label className="grid gap-1 text-xs font-black uppercase muted">{tx.syncDirection}<select className="input" value={clean.syncDirection} onChange={(e) => update({ syncDirection: e.target.value })}><option value="manual">Manual Sync Now</option><option value="two_way">Two-way prepared</option><option value="excel_to_app">Excel to app</option><option value="app_to_excel">App to Excel</option></select></label>
+            <label className="grid gap-1 text-xs font-black uppercase muted">{tx.conflictHandling}<select className="input" value={clean.conflictHandling} onChange={(e) => update({ conflictHandling: e.target.value })}><option value="ask">Ask before overwrite</option><option value="latest">Prefer latest edit</option><option value="app">Prefer app</option><option value="excel">Prefer Excel</option><option value="conflict">Mark as conflict</option></select></label>
+          </div>
+          <div className="mt-2 grid grid-cols-2 gap-2"><button className="btn primary" onClick={() => addLog("Mapping confirmed locally. Excel connection is prepared but not live yet.")}>{tx.confirmMapping}</button><button className="btn soft" onClick={() => addLog("Preview generated from the current mapping settings.")}>{tx.previewMappedRecords}</button></div>
+          {clean.syncLog.length > 0 && <div className="mt-2 grid gap-1 text-xs muted">{clean.syncLog.slice(0, 3).map((item, index) => <div key={index}>{fmtStamp(item.at)} - {item.message}</div>)}</div>}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function NotificationsSettings({ tx, settings, setSettings }) {
+  const supported = typeof window !== "undefined" && "Notification" in window && "serviceWorker" in navigator;
+  const requestNotifications = async () => {
+    if (!supported) {
+      setSettings((current) => cleanNotificationSettings({ ...current, enabled: false, permission: "unsupported" }));
+      return;
+    }
+    const permission = await window.Notification.requestPermission();
+    setSettings((current) => cleanNotificationSettings({ ...current, enabled: permission === "granted", permission: permission === "granted" ? "enabled" : permission === "denied" ? "blocked" : "not_enabled" }));
+  };
+  const update = (patch) => setSettings((current) => cleanNotificationSettings({ ...current, ...patch }));
+  return (
+    <section className="panel shadow-card p-3">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="text-[10px] font-black uppercase brand-accent">{tx.notifications}</p>
+          <h2 className="brand brand-text">{tx.notifications}</h2>
+          <p className="text-xs muted">{tx.notificationHelp}</p>
+        </div>
+        <span className="status-pill status-neutral">{notificationStatusLabel(settings.permission, tx)}</span>
+      </div>
+      {!supported && <p className="mt-2 rounded-2xl brand-soft p-2 text-xs muted">{tx.notificationUnsupported}</p>}
+      <button className="btn primary mt-3 w-full" onClick={requestNotifications}><Fa icon={faBell} /> <span>{tx.enableNotifications}</span></button>
+      <div className="mt-3 grid gap-2 text-xs font-black sm:grid-cols-2">
+        <label className="rounded-2xl brand-soft p-2"><input type="checkbox" checked={settings.currentFocusReminders} onChange={(e) => update({ currentFocusReminders: e.target.checked })} /> {tx.focusReminders}</label>
+        <label className="rounded-2xl brand-soft p-2"><input type="checkbox" checked={settings.focusFiveMinuteWarning} onChange={(e) => update({ focusFiveMinuteWarning: e.target.checked })} /> {tx.fiveMinuteWarning}</label>
+        <label className="rounded-2xl brand-soft p-2"><input type="checkbox" checked={settings.meetingReminders} onChange={(e) => update({ meetingReminders: e.target.checked })} /> {tx.meetingReminderSettings}</label>
+        <label className="rounded-2xl brand-soft p-2"><input type="checkbox" checked={settings.taskReminders} onChange={(e) => update({ taskReminders: e.target.checked })} /> {tx.taskReminderSettings}</label>
+        <label className="rounded-2xl brand-soft p-2"><input type="checkbox" checked={settings.urgentTaskReminders} onChange={(e) => update({ urgentTaskReminders: e.target.checked })} /> {tx.urgentTaskReminders}</label>
+        <label className="rounded-2xl brand-soft p-2"><input type="checkbox" checked={settings.endOfDayReminder} onChange={(e) => update({ endOfDayReminder: e.target.checked })} /> {tx.endOfDayReminder}</label>
+      </div>
+      <label className="mt-2 grid gap-1 text-xs font-black uppercase muted">{tx.endOfDayReminderTime}<input className="input" type="time" value={settings.endOfDayReminderTime} onChange={(e) => update({ endOfDayReminderTime: e.target.value })} /></label>
+    </section>
+  );
+}
+
+function Settings({ tx, language, setLanguage, profileName, setProfileName, theme, setTheme, optionSets, setOptionSets, integrations, featureFlags, notificationSettings, setNotificationSettings, portfolioMapping, setPortfolioMapping, close }) {
   const [fontName, setFontName] = useState("");
   const updateTheme = (patch) => setTheme((current) => cleanTheme({ ...current, ...patch }));
   const customFontOptions = theme.customFonts.map((font) => ({ label: font, value: font }));
@@ -2187,11 +3098,39 @@ function Settings({ tx, language, setLanguage, profileName, setProfileName, them
     setFontName("");
   };
 
-  return <div className="fixed inset-0 z-50 bg-black/50 p-3"><div className="panel ml-auto flex h-full max-w-md flex-col p-4 shadow-2xl"><div className="flex justify-between"><div><p className="text-xs font-black uppercase muted"><Fa icon={faGear} /> {tx.settings}</p><h2 className="brand text-xl brand-text">{tx.language}</h2></div><button className="btn soft" onClick={close}><Fa icon={faXmark} /></button></div><div className="mt-4 grid grid-cols-2 gap-2"><button className={"btn " + (language === "en" ? "primary" : "soft")} onClick={() => setLanguage("en")}>English</button><button className={"btn " + (language === "cy" ? "primary" : "soft")} onClick={() => setLanguage("cy")}>Cymraeg</button></div><label className="mt-3 grid gap-1 text-xs font-black uppercase muted">{tx.profileName}<input className="input normal-case" value={profileName} onChange={(e) => setProfileName(e.target.value)} /></label><div className="mt-5 min-h-0 flex-1 space-y-4 overflow-auto pr-1"><section className="rounded-3xl brand-soft p-3"><div className="mb-3 flex items-center justify-between"><h2 className="brand brand-text">{tx.design}</h2><button className="btn soft bg-white" onClick={() => setTheme(DEFAULT_THEME)}><Fa icon={faRotateLeft} /> <span>{tx.resetDesign}</span></button></div><div className="grid gap-3 sm:grid-cols-2"><label className="grid gap-1 text-xs font-black uppercase muted">{tx.bodyFont}<select className="input normal-case" value={theme.bodyFont} onChange={(e) => updateTheme({ bodyFont: e.target.value })}>{fontOptions.map((font) => <option key={font.value} value={font.value}>{font.label}</option>)}</select></label><label className="grid gap-1 text-xs font-black uppercase muted">{tx.headerFont}<select className="input normal-case" value={theme.headerFont} onChange={(e) => updateTheme({ headerFont: e.target.value })}>{fontOptions.map((font) => <option key={font.value} value={font.value}>{font.label}</option>)}</select></label></div><div className="mt-3 rounded-3xl bg-white p-3"><label className="grid gap-1 text-xs font-black uppercase muted">{tx.addFont}<span className="normal-case font-medium">{tx.addFontHelp}</span><div className="grid grid-cols-[1fr_auto] gap-2"><input className="input normal-case" placeholder={tx.fontName} value={fontName} onChange={(e) => setFontName(e.target.value)} /><button className="btn primary" onClick={addFont}><Fa icon={faCirclePlus} /></button></div></label></div><div className="mt-4 grid gap-3"><RangeControl label={tx.bodyWeight} value={theme.bodyWeight} min={100} max={900} step={100} onChange={(bodyWeight) => updateTheme({ bodyWeight })} /><RangeControl label={tx.headerWeight} value={theme.headerWeight} min={100} max={900} step={100} onChange={(headerWeight) => updateTheme({ headerWeight })} /><RangeControl label={tx.subheadingWeight} value={theme.subheadingWeight} min={100} max={900} step={100} onChange={(subheadingWeight) => updateTheme({ subheadingWeight })} /><RangeControl label={tx.bodySize} value={theme.bodySize} min={14} max={20} suffix="px" onChange={(bodySize) => updateTheme({ bodySize })} /><RangeControl label={tx.headerSize} value={Math.round(theme.headerScale * 100)} min={85} max={125} suffix="%" onChange={(headerScale) => updateTheme({ headerScale: headerScale / 100 })} /><RangeControl label={tx.subheadingSize} value={theme.subheadingSize} min={10} max={18} suffix="px" onChange={(subheadingSize) => updateTheme({ subheadingSize })} /><RangeControl label={tx.panelRadius} value={theme.panelRadius} min={4} max={36} suffix="px" onChange={(panelRadius) => updateTheme({ panelRadius })} /><RangeControl label={tx.controlRadius} value={theme.controlRadius} min={4} max={28} suffix="px" onChange={(controlRadius) => updateTheme({ controlRadius })} /></div></section><section className="panel shadow-card p-3" style={themeStyle(theme)}><p className="text-[10px] font-black uppercase brand-accent" style={{ fontWeight: theme.subheadingWeight, fontSize: theme.subheadingSize + "px" }}>{tx.design}</p><h2 className="brand brand-text" style={{ fontFamily: theme.headerFont, fontWeight: theme.headerWeight, fontSize: `${26 * theme.headerScale}px` }}>{tx.previewTitle}</h2><p className="mt-2 muted">{tx.previewBody}</p><div className="mt-3 grid grid-cols-2 gap-2"><button className="btn primary">Primary</button><button className="btn soft">Secondary</button></div></section><section className="rounded-3xl brand-soft p-3"><div className="mb-3 flex items-center justify-between gap-2"><div><h2 className="brand brand-text">{tx.dropdownOptions}</h2><p className="text-xs muted">{tx.dropdownHelp}</p></div><button className="btn soft bg-white" onClick={() => setOptionSets(cleanOptionSets(DEFAULT_OPTION_SETS))}><Fa icon={faRotateLeft} /> <span>{tx.resetOptions}</span></button></div><div className="grid gap-3">{Object.entries(optionSets).map(([setKey, options]) => <OptionSetEditor key={setKey} tx={tx} setKey={setKey} options={options} setOptionSets={setOptionSets} />)}</div></section></div></div></div>;
+  return (
+    <div className="fixed inset-0 z-50 bg-black/50 p-3">
+      <div className="panel ml-auto flex h-full max-w-md flex-col p-4 shadow-2xl">
+        <div className="flex justify-between">
+          <div><p className="text-xs font-black uppercase muted"><Fa icon={faGear} /> {tx.settings}</p><h2 className="brand text-xl brand-text">{tx.language}</h2></div>
+          <button className="btn soft" onClick={close}><Fa icon={faXmark} /></button>
+        </div>
+        <div className="mt-4 grid grid-cols-2 gap-2"><button className={"btn " + (language === "en" ? "primary" : "soft")} onClick={() => setLanguage("en")}>English</button><button className={"btn " + (language === "cy" ? "primary" : "soft")} onClick={() => setLanguage("cy")}>Cymraeg</button></div>
+        <label className="mt-3 grid gap-1 text-xs font-black uppercase muted">{tx.profileName}<input className="input normal-case" value={profileName} onChange={(e) => setProfileName(e.target.value)} /></label>
+        <div className="mt-5 min-h-0 flex-1 space-y-4 overflow-auto pr-1">
+          <section className="rounded-3xl brand-soft p-3">
+            <div className="mb-3 flex items-center justify-between"><h2 className="brand brand-text">{tx.design}</h2><button className="btn soft bg-white" onClick={() => setTheme(DEFAULT_THEME)}><Fa icon={faRotateLeft} /> <span>{tx.resetDesign}</span></button></div>
+            <div className="grid gap-3 sm:grid-cols-2"><label className="grid gap-1 text-xs font-black uppercase muted">{tx.bodyFont}<select className="input normal-case" value={theme.bodyFont} onChange={(e) => updateTheme({ bodyFont: e.target.value })}>{fontOptions.map((font) => <option key={font.value} value={font.value}>{font.label}</option>)}</select></label><label className="grid gap-1 text-xs font-black uppercase muted">{tx.headerFont}<select className="input normal-case" value={theme.headerFont} onChange={(e) => updateTheme({ headerFont: e.target.value })}>{fontOptions.map((font) => <option key={font.value} value={font.value}>{font.label}</option>)}</select></label></div>
+            <div className="mt-3 rounded-3xl bg-white p-3"><label className="grid gap-1 text-xs font-black uppercase muted">{tx.addFont}<span className="normal-case font-medium">{tx.addFontHelp}</span><div className="grid grid-cols-[1fr_auto] gap-2"><input className="input normal-case" placeholder={tx.fontName} value={fontName} onChange={(e) => setFontName(e.target.value)} /><button className="btn primary" onClick={addFont}><Fa icon={faCirclePlus} /></button></div></label></div>
+            <div className="mt-4 grid gap-3"><RangeControl label={tx.bodyWeight} value={theme.bodyWeight} min={100} max={900} step={100} onChange={(bodyWeight) => updateTheme({ bodyWeight })} /><RangeControl label={tx.headerWeight} value={theme.headerWeight} min={100} max={900} step={100} onChange={(headerWeight) => updateTheme({ headerWeight })} /><RangeControl label={tx.subheadingWeight} value={theme.subheadingWeight} min={100} max={900} step={100} onChange={(subheadingWeight) => updateTheme({ subheadingWeight })} /><RangeControl label={tx.bodySize} value={theme.bodySize} min={14} max={20} suffix="px" onChange={(bodySize) => updateTheme({ bodySize })} /><RangeControl label={tx.headerSize} value={Math.round(theme.headerScale * 100)} min={85} max={125} suffix="%" onChange={(headerScale) => updateTheme({ headerScale: headerScale / 100 })} /><RangeControl label={tx.subheadingSize} value={theme.subheadingSize} min={10} max={18} suffix="px" onChange={(subheadingSize) => updateTheme({ subheadingSize })} /><RangeControl label={tx.panelRadius} value={theme.panelRadius} min={4} max={36} suffix="px" onChange={(panelRadius) => updateTheme({ panelRadius })} /><RangeControl label={tx.controlRadius} value={theme.controlRadius} min={4} max={28} suffix="px" onChange={(controlRadius) => updateTheme({ controlRadius })} /></div>
+          </section>
+          <section className="panel shadow-card p-3" style={themeStyle(theme)}><p className="text-[10px] font-black uppercase brand-accent" style={{ fontWeight: theme.subheadingWeight, fontSize: theme.subheadingSize + "px" }}>{tx.design}</p><h2 className="brand brand-text" style={{ fontFamily: theme.headerFont, fontWeight: theme.headerWeight, fontSize: `${26 * theme.headerScale}px` }}>{tx.previewTitle}</h2><p className="mt-2 muted">{tx.previewBody}</p><div className="mt-3 grid grid-cols-2 gap-2"><button className="btn primary">Primary</button><button className="btn soft">Secondary</button></div></section>
+          <Microsoft365IntegrationCard tx={tx} integrations={integrations} featureFlags={featureFlags} />
+          <PortfolioSyncSettings tx={tx} mapping={portfolioMapping} setMapping={setPortfolioMapping} />
+          <NotificationsSettings tx={tx} settings={notificationSettings} setSettings={setNotificationSettings} />
+          <section className="rounded-3xl brand-soft p-3"><div className="mb-3 flex items-center justify-between gap-2"><div><h2 className="brand brand-text">{tx.dropdownOptions}</h2><p className="text-xs muted">{tx.dropdownHelp}</p></div><button className="btn soft bg-white" onClick={() => setOptionSets(cleanOptionSets(DEFAULT_OPTION_SETS))}><Fa icon={faRotateLeft} /> <span>{tx.resetOptions}</span></button></div><div className="grid gap-3">{Object.entries(optionSets).map(([setKey, options]) => <OptionSetEditor key={setKey} tx={tx} setKey={setKey} options={options} setOptionSets={setOptionSets} />)}</div></section>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 function Reminder({ tx, alerts, dismiss }) {
   return <div className="fixed inset-0 z-40 grid place-items-center bg-black/35 p-4"><section className="w-full max-w-md animate-pulse rounded-3xl bg-orange-500 p-4 text-white shadow-2xl"><div className="flex justify-between gap-3"><div><p className="text-xs font-black uppercase"><Fa icon={faBell} /> {tx.meetingReminder}</p><h2 className="brand text-lg">{tx.meetingDue}</h2></div><button className="btn bg-white/20" onClick={dismiss}>{tx.dismiss}</button></div>{alerts.map((m) => <div key={m.id} className="mt-2 rounded-2xl bg-white p-3 brand-text"><b>{m.school}</b><div>{m.type} - {m.time}</div></div>)}</section></div>;
+}
+
+function TaskDeadlineReminder({ tx, tasks, dismiss }) {
+  return <div className="fixed inset-0 z-40 grid place-items-center bg-black/35 p-4"><section className="task-alert w-full max-w-md animate-pulse rounded-3xl p-4 shadow-2xl"><div className="flex justify-between gap-3"><div><p className="text-xs font-black uppercase"><Fa icon={faBell} /> {tx.taskDeadlineTitle}</p><h2 className="brand text-lg">{tx.taskDeadlineBody}</h2></div><button className="btn bg-white/20" onClick={dismiss}>{tx.dismiss}</button></div>{tasks.map((task) => <div key={task.id} className="mt-2 rounded-2xl bg-white p-3 brand-text"><b>{task.title}</b><div>{task.school} - {task.dueTime}</div></div>)}</section></div>;
 }
 
 function OfflineSavePrompt({ tx, saveOffline, cancel }) {
@@ -2200,11 +3139,16 @@ function OfflineSavePrompt({ tx, saveOffline, cancel }) {
 
 function CurrentFocus({ tx, schedule, setSchedule }) {
   const [editing, setEditing] = useState(false);
-  const { current, next } = focusNow(schedule);
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(new Date()), 1000);
+    return () => window.clearInterval(timer);
+  }, []);
+  const { current, next, progress, remaining } = focusState(schedule, now);
   const updateBlock = (id, patch) => setSchedule((items) => cleanFocusSchedule(items.map((block) => block.id === id ? { ...block, ...patch } : block)));
   const removeBlock = (id) => setSchedule((items) => cleanFocusSchedule(items.filter((block) => block.id !== id)));
   const addBlock = () => setSchedule((items) => cleanFocusSchedule([...items, { id: uid(), start: "09:00", end: "10:00", label: "Focus" }]));
-  return <section className="panel shadow-card mb-3 p-3"><div className="flex items-start justify-between gap-3"><div><p className="text-[10px] font-black uppercase brand-accent">{tx.currentFocus}</p><h2 className="brand brand-text">{current ? current.label : tx.noFocusNow}</h2><div className="text-xs muted">{current ? `${current.start} - ${current.end}` : ""}{next ? `  ${tx.nextFocus}: ${next.label} ${next.start}` : ""}</div></div><button className="btn soft" onClick={() => setEditing(!editing)}><Fa icon={faPenToSquare} /> <span className="hidden sm:inline">{tx.editSchedule}</span></button></div>{editing && <div className="mt-3 grid gap-2">{schedule.map((block) => <div key={block.id} className="grid gap-2 rounded-2xl brand-soft p-2 sm:grid-cols-[90px_90px_1fr_auto]"><input className="input" type="time" value={block.start} onChange={(e) => updateBlock(block.id, { start: e.target.value })} /><input className="input" type="time" value={block.end} onChange={(e) => updateBlock(block.id, { end: e.target.value })} /><input className="input" value={block.label} onChange={(e) => updateBlock(block.id, { label: e.target.value })} /><button className="btn soft text-red-700" onClick={() => removeBlock(block.id)}><Fa icon={faTrashCan} /></button></div>)}<button className="btn primary" onClick={addBlock}><Fa icon={faCirclePlus} /> <span>{tx.addFocusBlock}</span></button></div>}</section>;
+  return <section className="panel shadow-card mb-3 p-3"><div className="flex items-start justify-between gap-3"><div className="min-w-0 flex-1"><p className="text-[10px] font-black uppercase brand-accent">{tx.currentFocus}</p><h2 className="brand brand-text">{current ? current.label : tx.noFocusNow}</h2><div className="text-xs muted">{current ? `${current.start} - ${current.end} - ${remaining}` : ""}{next ? `  ${tx.nextFocus}: ${next.label} ${next.start}` : ""}</div>{current && <div className="focus-progress mt-2"><span style={{ width: `${progress}%` }} /></div>}</div><button className="btn soft" onClick={() => setEditing(!editing)}><Fa icon={faPenToSquare} /> <span className="hidden sm:inline">{tx.editSchedule}</span></button></div>{editing && <div className="mt-3 grid gap-2">{schedule.map((block) => <div key={block.id} className="grid gap-2 rounded-2xl brand-soft p-2 sm:grid-cols-[90px_90px_1fr_auto]"><input className="input" type="time" value={block.start} onChange={(e) => updateBlock(block.id, { start: e.target.value })} /><input className="input" type="time" value={block.end} onChange={(e) => updateBlock(block.id, { end: e.target.value })} /><input className="input" value={block.label} onChange={(e) => updateBlock(block.id, { label: e.target.value })} /><button className="btn soft text-red-700" onClick={() => removeBlock(block.id)}><Fa icon={faTrashCan} /></button></div>)}<button className="btn primary" onClick={addBlock}><Fa icon={faCirclePlus} /> <span>{tx.addFocusBlock}</span></button></div>}</section>;
 }
 
 function MeetingEditPanel({ tx, optionSets, meeting, updateMeeting, close }) {
@@ -2243,13 +3187,84 @@ function Tabs({ tx, tab, setTab }) {
     ["tasks", faListCheck, tx.dynamicTasks],
     ["notes", faNoteSticky, tx.notesTab || tx.meetingNotes],
     ["levelUps", faRocket, tx.levelUps],
+    ["portfolio", faFileArrowUp, tx.portfolio],
   ];
-  return <div className="panel shadow-card mb-3 grid grid-cols-5 gap-1 p-1">{tabs.map(([key, icon, label]) => <button key={key} onClick={() => setTab(key)} className={"btn min-w-0 " + (tab === key ? "primary" : "")}><span className="tab-icon"><Fa icon={icon} /></span><span className="tab-label"><Fa icon={icon} /> <span>{label}</span></span></button>)}</div>;
+  return <div className="panel shadow-card mb-3 grid grid-cols-6 gap-1 p-1">{tabs.map(([key, icon, label]) => <button key={key} onClick={() => setTab(key)} className={"btn min-w-0 " + (tab === key ? "primary" : "")}><span className="tab-icon"><Fa icon={icon} /></span><span className="tab-label"><Fa icon={icon} /> <span>{label}</span></span></button>)}</div>;
 }
 
 function Pill({ children, good, warn }) {
   const cls = good ? "bg-green-100 text-green-800" : warn ? "bg-amber-100 text-amber-800" : "bg-slate-100 text-slate-700";
   return <span className={"mt-2 inline-block rounded-full px-2 py-1 text-[10px] font-black " + cls}>{children}</span>;
+}
+
+function isInteractiveDragTarget(target) {
+  return Boolean(target.closest("button,input,select,textarea,a,label,[contenteditable='true']"));
+}
+
+function orderedSections(items, order) {
+  const ids = items.map((item) => item.id);
+  const chosen = asArray(order).filter((id) => ids.includes(id));
+  return [...chosen, ...ids.filter((id) => !chosen.includes(id))].map((id) => items.find((item) => item.id === id)).filter(Boolean);
+}
+
+function moveSection(order, fromId, toId, fallbackIds) {
+  const ids = [...asArray(order).filter((id) => fallbackIds.includes(id)), ...fallbackIds.filter((id) => !asArray(order).includes(id))];
+  const from = ids.indexOf(fromId);
+  const to = ids.indexOf(toId);
+  if (from < 0 || to < 0 || from === to) return ids;
+  const next = [...ids];
+  const [item] = next.splice(from, 1);
+  next.splice(to, 0, item);
+  return next;
+}
+
+function ReorderableSections({ items, order, setOrder, className = "dashboard-sections" }) {
+  const [draggingId, setDraggingId] = useState("");
+  const holdTimer = useRef(null);
+  const startId = useRef("");
+  const fallbackIds = items.map((item) => item.id);
+  const sorted = orderedSections(items, order);
+  const clearHold = () => {
+    if (holdTimer.current) window.clearTimeout(holdTimer.current);
+    holdTimer.current = null;
+  };
+  const finish = () => {
+    clearHold();
+    setDraggingId("");
+    startId.current = "";
+  };
+  const begin = (event, id) => {
+    if (isInteractiveDragTarget(event.target)) return;
+    startId.current = id;
+    clearHold();
+    holdTimer.current = window.setTimeout(() => setDraggingId(id), 1000);
+  };
+  const moveOver = (event) => {
+    if (!draggingId) return;
+    const target = document.elementFromPoint(event.clientX, event.clientY)?.closest("[data-reorder-id]");
+    const overId = target?.getAttribute("data-reorder-id");
+    if (overId && overId !== draggingId) {
+      setOrder(moveSection(order, draggingId, overId, fallbackIds));
+    }
+  };
+  useEffect(() => {
+    if (!draggingId) return undefined;
+    window.addEventListener("pointerup", finish);
+    window.addEventListener("pointercancel", finish);
+    return () => {
+      window.removeEventListener("pointerup", finish);
+      window.removeEventListener("pointercancel", finish);
+    };
+  }, [draggingId]);
+  return (
+    <main className={className} onPointerMove={moveOver}>
+      {sorted.map((item) => (
+        <section key={item.id} data-reorder-id={item.id} className={"reorder-section " + (draggingId === item.id ? "dragging" : "")} onPointerDown={(event) => begin(event, item.id)} onPointerUp={finish} onPointerLeave={clearHold}>
+          {item.node}
+        </section>
+      ))}
+    </main>
+  );
 }
 
 function List({ title, count, children, empty }) {
@@ -2265,14 +3280,20 @@ function KpiEditInput({ value, onCommit }) {
 function Kpis(props) {
   const tx = props.tx;
   const [openForm, setOpenForm] = useState(null);
-  const [listsFirst, setListsFirst] = useState(false);
   const toggle = (name) => setOpenForm(openForm === name ? null : name);
   const actionClass = (name) => "btn w-full text-left " + (openForm === name ? "primary" : "soft");
 
   const kpiCards = <div className="grid grid-cols-2 gap-2">{KPI_FIELDS.map(([key, label]) => { const target = getKpiTarget(key, props.view, props.period); const value = props.totals[key] || 0; const status = getKpiStatus(value, target); return <div key={key} className={"kpi-box kpi-" + status + " shadow-card p-3"}><div className="text-[10px] font-black uppercase muted">{label}</div>{props.editTotals ? <KpiEditInput key={`${key}-${value}`} value={value} onCommit={(next) => props.setTotal(key, next)} /> : <button className="mt-2 w-full rounded-2xl bg-white/65 p-3 text-left text-3xl font-black brand-text" onClick={() => props.addAdj(key)}>{value}</button>}{target ? <div className="mt-2 text-[10px] font-black uppercase muted">Target {target}</div> : null}</div>; })}</div>;
   const quickAdd = <div className="panel shadow-card p-3"><h2 className="brand brand-text">{tx.quickAdd}</h2><div className="mt-3 grid gap-2"><button className={actionClass("meeting")} onClick={() => toggle("meeting")}><Fa icon={openForm === "meeting" ? faMinus : faCirclePlus} /> <span>{tx.addMeeting}</span></button>{openForm === "meeting" && <div className="rounded-3xl brand-soft p-3"><input className="input" placeholder={tx.school} value={props.meetingForm.school} onChange={(e) => props.setMeetingForm({ ...props.meetingForm, school: e.target.value })} /><input className="input mt-2" placeholder={tx.contactName} value={props.meetingForm.contactName || ""} onChange={(e) => props.setMeetingForm({ ...props.meetingForm, contactName: e.target.value })} /><select className="input mt-2" value={props.meetingForm.type} onChange={(e) => props.setMeetingForm({ ...props.meetingForm, type: e.target.value })}>{labelsFor(props.optionSets, "meetingTypes").map((x) => <option key={x}>{x}</option>)}</select><div className="mt-2 grid grid-cols-2 gap-2"><input className="input" type="date" value={props.meetingForm.date} onChange={(e) => props.setMeetingForm({ ...props.meetingForm, date: e.target.value })} /><input className="input" type="time" value={props.meetingForm.time} onChange={(e) => props.setMeetingForm({ ...props.meetingForm, time: e.target.value })} /></div><textarea className="input mt-2 min-h-[70px]" placeholder={tx.notes} value={props.meetingForm.notes || ""} onChange={(e) => props.setMeetingForm({ ...props.meetingForm, notes: e.target.value })} /><label className="mt-2 block rounded-2xl bg-white p-2 text-xs font-black"><input type="checkbox" checked={props.meetingForm.teamsInviteSent} onChange={(e) => props.setMeetingForm({ ...props.meetingForm, teamsInviteSent: e.target.checked })} /> {tx.teamsInviteSent}</label><label className="mt-2 block rounded-2xl bg-white p-2 text-xs font-black"><input type="checkbox" checked={Boolean(props.meetingForm.doNotAddToKpis)} onChange={(e) => props.setMeetingForm({ ...props.meetingForm, doNotAddToKpis: e.target.checked })} /> {tx.doNotAddToKpis}</label><button className="btn primary mt-2" onClick={props.addMeeting}><Fa icon={faCirclePlus} /> <span>{tx.addMeeting}</span></button></div>}<button className={actionClass("call")} onClick={() => toggle("call")}><Fa icon={openForm === "call" ? faMinus : faPhone} /> <span>{tx.addCall}</span></button>{openForm === "call" && <div className="rounded-3xl brand-soft p-3"><input className="input" placeholder={tx.school} value={props.callForm.school} onChange={(e) => props.setCallForm({ ...props.callForm, school: e.target.value })} /><select className="input mt-2" value={props.callForm.reason} onChange={(e) => props.setCallForm({ ...props.callForm, reason: e.target.value })}>{labelsFor(props.optionSets, "callReasons").map((x) => <option key={x}>{x}</option>)}</select><select className="input mt-2" value={props.callForm.outcome} onChange={(e) => props.setCallForm({ ...props.callForm, outcome: e.target.value })}>{labelsFor(props.optionSets, "callOutcomes").map((x) => <option key={x}>{x}</option>)}</select><textarea className="input mt-2 min-h-[90px]" placeholder={tx.notes} value={props.callForm.notes || ""} onChange={(e) => props.setCallForm({ ...props.callForm, notes: e.target.value })} /><label className="mt-2 block rounded-2xl bg-white p-2 text-xs font-black"><input type="checkbox" checked={Boolean(props.callForm.doNotAddToKpis)} onChange={(e) => props.setCallForm({ ...props.callForm, doNotAddToKpis: e.target.checked })} /> {tx.doNotAddToKpis}</label><button className="btn primary mt-2" onClick={props.addCall}><Fa icon={faPhone} /> <span>{tx.addCall}</span></button></div>}</div></div>;
-  const lists = <section className="grid gap-3 lg:grid-cols-2"><List title={tx.meetings} count={props.meetings.length}>{props.meetings.map((m) => <div className="panel p-3" key={m.id}><div className="flex justify-between"><div><b>{m.school}</b><div className="text-xs muted">{fmtDate(m.date)} - {m.time || tx.dueTime} - {m.type}</div></div><button onClick={() => props.removeMeeting(m.id)}><Fa icon={faTrashCan} /></button></div><button onClick={() => props.toggleInvite(m.id)}><Pill good={m.teamsInviteSent} warn={!m.teamsInviteSent}>{m.teamsInviteSent ? tx.teamsSent : tx.teamsNotSent}</Pill></button></div>)}</List><List title={tx.calls} count={props.calls.length}>{props.calls.map((c) => <div className="panel p-3" key={c.id}><div className="flex justify-between gap-2"><div className="min-w-0 flex-1"><b>{c.school}</b><div className="mt-2 grid gap-1 text-xs"><div>{c.reason}</div><div>{c.outcome}</div>{c.notes && <div className="whitespace-pre-wrap">{c.notes}</div>}</div><div className="text-xs muted">{fmtDate(c.date)}</div></div><button onClick={() => props.removeCall(c.id)}><Fa icon={faTrashCan} /></button></div></div>)}</List></section>;
-  return <main className="grid gap-3 lg:grid-cols-[320px_1fr]"><section className={"space-y-3 " + (listsFirst ? "order-2" : "")}><button className="btn soft w-full" onClick={() => setListsFirst(!listsFirst)}>{listsFirst ? "Quick add first" : "Lists first"}</button>{kpiCards}{quickAdd}</section><section className={listsFirst ? "order-1" : ""}>{lists}</section></main>;
+  const meetingsList = <List title={tx.meetings} count={props.meetings.length}>{props.meetings.map((m) => <div className="panel p-3" key={m.id}><div className="flex justify-between"><div><b>{m.school}</b><div className="text-xs muted">{fmtDate(m.date)} - {m.time || tx.dueTime} - {m.type}</div></div><button onClick={() => props.removeMeeting(m.id)}><Fa icon={faTrashCan} /></button></div><button onClick={() => props.toggleInvite(m.id)}><Pill good={m.teamsInviteSent} warn={!m.teamsInviteSent}>{m.teamsInviteSent ? tx.teamsSent : tx.teamsNotSent}</Pill></button></div>)}</List>;
+  const callsList = <List title={tx.calls} count={props.calls.length}>{props.calls.map((c) => <div className="panel p-3" key={c.id}><div className="flex justify-between gap-2"><div className="min-w-0 flex-1"><b>{c.school}</b><div className="mt-2 grid gap-1 text-xs"><div>{c.reason}</div><div>{c.outcome}</div>{c.notes && <div className="whitespace-pre-wrap">{c.notes}</div>}</div><div className="text-xs muted">{fmtDate(c.date)}</div></div><button onClick={() => props.removeCall(c.id)}><Fa icon={faTrashCan} /></button></div></div>)}</List>;
+  const items = [
+    { id: "kpiCards", node: kpiCards },
+    { id: "quickAdd", node: quickAdd },
+    { id: "meetings", node: meetingsList },
+    { id: "calls", node: callsList },
+  ];
+  return <ReorderableSections items={items} order={props.sectionOrder} setOrder={props.setSectionOrder} />;
 }
 
 function OpportunityEditPanel({ tx, optionSets, opportunity, update, close }) {
@@ -2318,28 +3339,168 @@ function OpportunityCard({ tx, optionSets, opportunity, updateOpp, remove }) {
   return <div className="panel shadow-card opportunity-card p-3"><div className="flex justify-between gap-2"><div className="min-w-0"><b>{opportunity.name || opportunity.opportunityName}</b><div className="text-xs muted">{opportunity.school} - {opportunityTypeLabel(opportunity)}</div></div><div className="flex flex-wrap justify-end gap-1"><button className="btn soft bg-white" title={tx.editTask} onClick={() => setEditing(!editing)}><Fa icon={faPenToSquare} /></button><button className="btn soft bg-white text-red-700" onClick={() => remove(opportunity.id)}><Fa icon={faTrashCan} /></button></div></div><div className="mt-2 grid gap-2 text-xs sm:grid-cols-2">{status === "pending" && <><Pill>{tx.contactStatus}: {opportunity.contactStatus}</Pill><Pill warn={opportunityDeadlineLabel(opportunity, tx) === tx.pastDeadline}>{opportunityDeadlineLabel(opportunity, tx)}</Pill><Pill>{tx.emailStatus}: {opportunity.emailStatus}</Pill><Pill>{tx.callStatus}: {opportunity.callStatus}</Pill><div className="rounded-2xl bg-white/70 p-2 font-black">{opportunityLastActivity(opportunity, tx)}</div><div className="rounded-2xl bg-white/70 p-2 font-black">{tx.suggestedAction}: {opportunitySuggestedAction(opportunity, tx)}</div><div className="rounded-2xl bg-white/70 p-2 font-black">{formatMoney(opportunity.value)}</div></>}{status === "won" && <><Pill good>{tx.won}</Pill><Pill>{tx.closedDate}: {fmtDate(opportunity.closedDate || opportunity.wonDate)}</Pill><div className="rounded-2xl bg-white/70 p-2 font-black">{formatMoney(opportunity.value)}</div><div className="rounded-2xl bg-white/70 p-2 font-black">{tx.totalCommission}: {formatMoney(Number(opportunity.value || 0) * 0.1)}</div><Pill>{tx.emailStatus}: {opportunity.emailStatus}</Pill><Pill>{tx.callStatus}: {opportunity.callStatus}</Pill></>}{status === "lost" && <><Pill warn>{tx.lost}</Pill><Pill>{tx.lostReason}: {lostText}</Pill><div className="rounded-2xl bg-white/70 p-2 font-black">{opportunityLastActivity(opportunity, tx)}</div><div className="rounded-2xl bg-white/70 p-2 font-black">{formatMoney(opportunity.value)}</div><Pill>{tx.emailStatus}: {opportunity.emailStatus}</Pill><Pill>{tx.callStatus}: {opportunity.callStatus}</Pill></>}</div><div className="mt-3 grid gap-2 sm:grid-cols-3">{status === "pending" && <><button className="btn primary" onClick={() => updateOpp(opportunity.id, { status: "won" })}>{tx.markAsWon}</button><button className="btn soft" onClick={() => setMarkingLost(!markingLost)}>{tx.markAsLost}</button></>}{status !== "pending" && <button className="btn primary" onClick={() => updateOpp(opportunity.id, { status: "pending" })}>{tx.reopenOpportunity}</button>}<button className="btn soft" onClick={() => setEditing(!editing)}>{tx.editTask}</button></div>{markingLost && <div className="mt-2 rounded-3xl bg-white p-3"><select className="input" value={lostReason} onChange={(e) => setLostReason(e.target.value)}>{LOST_REASONS.map((reason) => <option key={reason}>{reason}</option>)}</select>{lostReason === "Other" && <input className="input mt-2" placeholder={tx.otherLostReason} value={lostReasonOther} onChange={(e) => setLostReasonOther(e.target.value)} />}<button className="btn primary mt-2" onClick={markLost}>{tx.markAsLost}</button></div>}{editing && <OpportunityEditPanel tx={tx} optionSets={optionSets} opportunity={opportunity} update={updateOpp} close={() => setEditing(false)} />}</div>;
 }
 
-function OpportunitiesTab({ tx, optionSets, form, setForm, add, opportunities, remove, updateOpp }) {
+function OpportunitiesTab({ tx, optionSets, form, setForm, add, opportunities, remove, updateOpp, sectionOrder, setSectionOrder }) {
   const typeOptions = labelsFor(optionSets, "opportunityTypes");
   const inProgress = opportunities.filter((opp) => normalizeOpportunityStatus(opp.status) === "pending");
   const won = opportunities.filter((opp) => normalizeOpportunityStatus(opp.status) === "won");
   const lost = opportunities.filter((opp) => normalizeOpportunityStatus(opp.status) === "lost");
   const render = (items) => items.map((o) => <OpportunityCard key={o.id} tx={tx} optionSets={optionSets} opportunity={o} updateOpp={updateOpp} remove={remove} />);
-  return <main className="grid gap-3 lg:grid-cols-[340px_1fr]"><section className="panel shadow-card p-3"><h2 className="brand brand-text">{tx.addOpportunity}</h2><div className="mt-2 grid gap-2"><input className="input" placeholder={tx.opportunityName} value={form.name || ""} onChange={(e) => setForm({ ...form, name: e.target.value })} /><input className="input" placeholder={tx.school} value={form.school} onChange={(e) => setForm({ ...form, school: e.target.value })} /><select className="input" value={form.opportunityType || typeOptions[0] || ""} onChange={(e) => setForm({ ...form, opportunityType: e.target.value })}>{typeOptions.map((x) => <option key={x}>{x}</option>)}</select><input className="input" type="number" min="0" step="0.01" placeholder={tx.opportunityValue} value={form.value || ""} onChange={(e) => setForm({ ...form, value: e.target.value })} /><label className="grid gap-1 text-[10px] font-black uppercase muted">{tx.endDate}<input className="input" type="date" value={form.endDate || todayValue()} onChange={(e) => setForm({ ...form, endDate: e.target.value })} /></label><button className="btn primary" onClick={add}><Fa icon={faCirclePlus} /> <span>{tx.addOpportunity}</span></button></div></section><section className="grid gap-3"><List title={tx.inProgressOpportunities} count={inProgress.length}>{render(inProgress)}</List><List title={tx.wonOpportunities} count={won.length}>{render(won)}</List><List title={tx.lostOpportunities} count={lost.length}>{render(lost)}</List></section></main>;
+  const addPanel = <section className="panel shadow-card p-3"><h2 className="brand brand-text">{tx.addOpportunity}</h2><div className="mt-2 grid gap-2"><input className="input" placeholder={tx.opportunityName} value={form.name || ""} onChange={(e) => setForm({ ...form, name: e.target.value })} /><input className="input" placeholder={tx.school} value={form.school} onChange={(e) => setForm({ ...form, school: e.target.value })} /><select className="input" value={form.opportunityType || typeOptions[0] || ""} onChange={(e) => setForm({ ...form, opportunityType: e.target.value })}>{typeOptions.map((x) => <option key={x}>{x}</option>)}</select><input className="input" type="number" min="0" step="0.01" placeholder={tx.opportunityValue} value={form.value || ""} onChange={(e) => setForm({ ...form, value: e.target.value })} /><label className="grid gap-1 text-[10px] font-black uppercase muted">{tx.endDate}<input className="input" type="date" value={form.endDate || todayValue()} onChange={(e) => setForm({ ...form, endDate: e.target.value })} /></label><button className="btn primary" onClick={add}><Fa icon={faCirclePlus} /> <span>{tx.addOpportunity}</span></button></div></section>;
+  return <ReorderableSections items={[
+    { id: "addOpportunity", node: addPanel },
+    { id: "inProgress", node: <List title={tx.inProgressOpportunities} count={inProgress.length}>{render(inProgress)}</List> },
+    { id: "won", node: <List title={tx.wonOpportunities} count={won.length}>{render(won)}</List> },
+    { id: "lost", node: <List title={tx.lostOpportunities} count={lost.length}>{render(lost)}</List> },
+  ]} order={sectionOrder} setOrder={setSectionOrder} />;
 }
 
-function LevelUps({ tx, levelUps, form, setForm, add, toggle, remove }) {
-  return <main className="grid gap-3 lg:grid-cols-[340px_1fr]"><section className="panel shadow-card p-3"><h2 className="brand brand-text">{tx.addLevelUp}</h2><div className="mt-2 grid gap-2"><input className="input" placeholder={tx.school} value={form.school} onChange={(e) => setForm({ ...form, school: e.target.value })} /><button className="btn primary" onClick={add}><Fa icon={faRocket} /> <span>{tx.addLevelUp}</span></button></div></section><List title={tx.levelUps} count={levelUps.length}>{levelUps.map((item) => <div className="panel shadow-card p-3" key={item.id}><div className="flex justify-between gap-2"><div><b>{item.school}</b><div className="text-xs muted">{fmtDate(item.date || String(item.createdAt || todayValue()).slice(0, 10))}</div></div><button onClick={() => remove(item.id)}><Fa icon={faTrashCan} /></button></div><div className="mt-3 grid gap-2 sm:grid-cols-2"><button className={statusClass(item.onlineForm)} onClick={() => toggle(item.id, "onlineForm")}><span>{tx.onlineForm}</span><b>{item.onlineForm}</b></button><button className={statusClass(item.careerSite)} onClick={() => toggle(item.id, "careerSite")}><span>{tx.careerSite}</span><b>{item.careerSite}</b></button></div></div>)}</List></main>;
+function portfolioRenewalLabel(record) {
+  if (!record.renewalDate) return "No renewal date";
+  const days = Math.ceil((parseDay(record.renewalDate).getTime() - parseDay(todayValue()).getTime()) / 86400000);
+  if (days < 0) return "Past renewal";
+  if (days === 0) return "Renews today";
+  return `Renews in ${days} days`;
+}
+
+function portfolioSyncLabel(record, tx) {
+  if (record.sourceType === "indirect") return tx.indirectRecord;
+  if (record.syncStatus === "pending") return tx.pendingSync;
+  if (record.syncStatus === "conflict") return tx.conflict;
+  return tx.synced;
+}
+
+function PortfolioRecordCard({ tx, record, updateRecord, remove }) {
+  const [editing, setEditing] = useState(false);
+  const pending = record.syncStatus === "pending";
+  return (
+    <div className={"panel shadow-card portfolio-card p-3 " + (pending ? "portfolio-pending" : "")}>
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          <b>{record.accountName}</b>
+          <div className="text-xs muted">{record.localAuthority || record.accountType || tx.portfolioRenewals} - {portfolioRenewalLabel(record)}</div>
+        </div>
+        <div className="flex gap-1">
+          <button className="btn soft bg-white" onClick={() => setEditing(!editing)}><Fa icon={faPenToSquare} /></button>
+          <button className="btn soft bg-white text-red-700" onClick={() => remove(record.id)}><Fa icon={faTrashCan} /></button>
+        </div>
+      </div>
+      <div className="mt-2 grid gap-2 text-xs sm:grid-cols-2">
+        <Pill good={record.sourceType === "direct"}>{record.sourceType === "direct" ? tx.directRecord : tx.indirectRecord}</Pill>
+        <Pill warn={pending}>{portfolioSyncLabel(record, tx)}</Pill>
+        <div className="rounded-2xl bg-white/70 p-2 font-black">{tx.applicationMethod}: {record.applicationMethod}</div>
+        <div className="rounded-2xl bg-white/70 p-2 font-black">{tx.renewalStatus}: {record.renewalStatus}</div>
+        <div className="rounded-2xl bg-white/70 p-2 font-black">{tx.churnRisk}: {record.churnRisk}</div>
+        <div className="rounded-2xl bg-white/70 p-2 font-black">{tx.currentRate}: {formatMoney(record.currentRate)}</div>
+      </div>
+      {record.latestUpdate ? <p className="mt-2 whitespace-pre-wrap text-xs muted">{record.latestUpdate}</p> : null}
+      {editing && (
+        <div className="mt-3 rounded-3xl bg-white p-3">
+          <div className="grid gap-2">
+            <input className="input" placeholder={tx.accountName} value={record.accountName} onChange={(e) => updateRecord(record.id, { accountName: e.target.value })} />
+            <div className="grid gap-2 sm:grid-cols-2">
+              <input className="input" placeholder={tx.localAuthority} value={record.localAuthority || ""} onChange={(e) => updateRecord(record.id, { localAuthority: e.target.value })} />
+              <input className="input" placeholder={tx.phase} value={record.phase || ""} onChange={(e) => updateRecord(record.id, { phase: e.target.value })} />
+            </div>
+            <div className="grid gap-2 sm:grid-cols-2">
+              <input className="input" type="date" value={record.renewalDate || ""} onChange={(e) => updateRecord(record.id, { renewalDate: e.target.value })} />
+              <input className="input" placeholder={tx.licenceType} value={record.licenceType || ""} onChange={(e) => updateRecord(record.id, { licenceType: e.target.value })} />
+            </div>
+            <div className="grid gap-2 sm:grid-cols-3">
+              <select className="input" value={record.applicationMethod || "Unknown"} onChange={(e) => updateRecord(record.id, { applicationMethod: e.target.value })}>{APPLICATION_METHODS.map((value) => <option key={value}>{value}</option>)}</select>
+              <select className="input" value={record.renewalStatus || "Unknown"} onChange={(e) => updateRecord(record.id, { renewalStatus: e.target.value })}>{RENEWAL_STATUSES.map((value) => <option key={value}>{value}</option>)}</select>
+              <select className="input" value={record.churnRisk || "Unknown"} onChange={(e) => updateRecord(record.id, { churnRisk: e.target.value })}>{CHURN_RISKS.map((value) => <option key={value}>{value}</option>)}</select>
+            </div>
+            <div className="grid gap-2 sm:grid-cols-3">
+              <input className="input" type="number" min="0" step="0.01" placeholder={tx.currentRate} value={record.currentRate || ""} onChange={(e) => updateRecord(record.id, { currentRate: e.target.value })} />
+              <input className="input" type="number" min="0" step="0.01" placeholder={tx.baseTarget} value={record.baseTarget || ""} onChange={(e) => updateRecord(record.id, { baseTarget: e.target.value })} />
+              <input className="input" type="number" min="0" step="0.01" placeholder={tx.actualRate} value={record.actualRate || ""} onChange={(e) => updateRecord(record.id, { actualRate: e.target.value })} />
+            </div>
+            <input className="input" placeholder={tx.lastSpokeWith} value={record.lastSpokeWith || ""} onChange={(e) => updateRecord(record.id, { lastSpokeWith: e.target.value })} />
+            <textarea className="input min-h-[80px]" placeholder={tx.latestUpdate} value={record.latestUpdate || ""} onChange={(e) => updateRecord(record.id, { latestUpdate: e.target.value })} />
+            <textarea className="input min-h-[80px]" placeholder={tx.notes} value={record.notes || ""} onChange={(e) => updateRecord(record.id, { notes: e.target.value })} />
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function PortfolioTab({ tx, records, mapping, form, setForm, addIndirect, updateRecord, syncNow, remove, sectionOrder, setSectionOrder }) {
+  const [search, setSearch] = useState("");
+  const [filters, setFilters] = useState({ applicationMethod: "", renewalStatus: "", churnRisk: "", localAuthority: "", phase: "", licenceType: "", accountType: "" });
+  const sourceLabel = mapping.activeSource === "team" ? `${tx.usingTeamPortfolio}: ${mapping.teamName || "Team"}` : tx.usingPersonalPortfolio;
+  const filtered = records.filter((record) => {
+    const haystack = [record.accountName, record.localAuthority, record.phase, record.licenceType, record.accountType, record.latestUpdate].join(" ").toLowerCase();
+    if (search && !haystack.includes(search.toLowerCase())) return false;
+    return Object.entries(filters).every(([key, value]) => !value || String(record[key] || "") === value);
+  });
+  const byRenewal = [...filtered].filter((record) => record.renewalDate && !["Renewed", "Churned"].includes(record.renewalStatus)).sort((a, b) => a.renewalDate.localeCompare(b.renewalDate));
+  const churn = filtered.filter((record) => record.churnRisk === "High" || record.renewalStatus === "Churn risk");
+  const contacted = [...filtered].filter((record) => record.lastProductiveContactAt).sort((a, b) => String(b.lastProductiveContactAt).localeCompare(String(a.lastProductiveContactAt))).slice(0, 20);
+  const mappedFields = Object.values(mapping.columnMap || {}).filter(Boolean).length;
+  const renderCards = (items) => items.map((record) => <PortfolioRecordCard key={record.id} tx={tx} record={record} updateRecord={updateRecord} remove={remove} />);
+  const controls = (
+    <section className="panel shadow-card p-3">
+      <div className="flex items-start justify-between gap-3">
+        <div><p className="text-[10px] font-black uppercase brand-accent">{tx.activeSource}</p><h2 className="brand brand-text">{sourceLabel}</h2><p className="text-xs muted">{mappedFields} mapped fields - {records.filter((record) => record.syncStatus === "pending").length} {tx.pendingSync}</p></div>
+        <button className="btn primary" onClick={syncNow}><Fa icon={faFileArrowUp} /> <span>{tx.syncNow}</span></button>
+      </div>
+      <div className="mt-3 grid gap-2">
+        <input className="input" placeholder={`${tx.search || "Search"} ${tx.allAccounts}`} value={search} onChange={(e) => setSearch(e.target.value)} />
+        <div className="grid gap-2 sm:grid-cols-3 lg:grid-cols-6">
+          <select className="input" value={filters.renewalStatus} onChange={(e) => setFilters({ ...filters, renewalStatus: e.target.value })}><option value="">{tx.renewalStatus}</option>{RENEWAL_STATUSES.map((value) => <option key={value}>{value}</option>)}</select>
+          <select className="input" value={filters.applicationMethod} onChange={(e) => setFilters({ ...filters, applicationMethod: e.target.value })}><option value="">{tx.applicationMethod}</option>{APPLICATION_METHODS.map((value) => <option key={value}>{value}</option>)}</select>
+          <select className="input" value={filters.churnRisk} onChange={(e) => setFilters({ ...filters, churnRisk: e.target.value })}><option value="">{tx.churnRisk}</option>{CHURN_RISKS.map((value) => <option key={value}>{value}</option>)}</select>
+          {["localAuthority", "phase", "licenceType"].map((field) => <input key={field} className="input" placeholder={tx[field] || field} value={filters[field]} onChange={(e) => setFilters({ ...filters, [field]: e.target.value })} />)}
+        </div>
+      </div>
+      <div className="mt-3 rounded-3xl brand-soft p-3">
+        <h3 className="brand brand-text">{tx.addIndirectSchool}</h3>
+        <div className="mt-2 grid gap-2 sm:grid-cols-2">
+          <input className="input" placeholder={tx.accountName} value={form.accountName} onChange={(e) => setForm({ ...form, accountName: e.target.value })} />
+          <input className="input" type="date" value={form.renewalDate || todayValue()} onChange={(e) => setForm({ ...form, renewalDate: e.target.value })} />
+          <select className="input" value={form.applicationMethod} onChange={(e) => setForm({ ...form, applicationMethod: e.target.value })}>{APPLICATION_METHODS.map((value) => <option key={value}>{value}</option>)}</select>
+          <select className="input" value={form.renewalStatus} onChange={(e) => setForm({ ...form, renewalStatus: e.target.value })}>{RENEWAL_STATUSES.map((value) => <option key={value}>{value}</option>)}</select>
+          <select className="input" value={form.churnRisk} onChange={(e) => setForm({ ...form, churnRisk: e.target.value })}>{CHURN_RISKS.map((value) => <option key={value}>{value}</option>)}</select>
+          <button className="btn primary" onClick={addIndirect}><Fa icon={faCirclePlus} /> <span>{tx.addIndirectSchool}</span></button>
+        </div>
+      </div>
+    </section>
+  );
+  const applicationMethods = (
+    <section className="panel shadow-card p-3">
+      <h2 className="brand brand-text">{tx.onlineForm} / {tx.applicationMethod}</h2>
+      <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">{APPLICATION_METHODS.map((method) => {
+        const count = filtered.filter((record) => record.applicationMethod === method).length;
+        return <div key={method} className="rounded-2xl brand-soft p-3"><b>{method}</b><div className="text-xs muted">{count} {tx.allAccounts}</div></div>;
+      })}</div>
+    </section>
+  );
+  return <ReorderableSections items={[
+    { id: "portfolioControls", node: controls },
+    { id: "upcomingRenewals", node: <List title={tx.upcomingRenewals} count={byRenewal.length}>{renderCards(byRenewal)}</List> },
+    { id: "churnRisk", node: <List title={tx.churnRisk} count={churn.length}>{renderCards(churn)}</List> },
+    { id: "applicationMethods", node: applicationMethods },
+    { id: "recentlyContacted", node: <List title={tx.recentlyContacted} count={contacted.length}>{renderCards(contacted)}</List> },
+    { id: "allAccounts", node: <List title={tx.allAccounts} count={filtered.length}>{renderCards(filtered)}</List> },
+  ]} order={sectionOrder} setOrder={setSectionOrder} />;
+}
+
+function LevelUps({ tx, levelUps, form, setForm, add, toggle, remove, sectionOrder, setSectionOrder }) {
+  const addPanel = <section className="panel shadow-card p-3"><h2 className="brand brand-text">{tx.addLevelUp}</h2><div className="mt-2 grid gap-2"><input className="input" placeholder={tx.school} value={form.school} onChange={(e) => setForm({ ...form, school: e.target.value })} /><button className="btn primary" onClick={add}><Fa icon={faRocket} /> <span>{tx.addLevelUp}</span></button></div></section>;
+  const list = <List title={tx.levelUps} count={levelUps.length}>{levelUps.map((item) => <div className="panel shadow-card p-3" key={item.id}><div className="flex justify-between gap-2"><div><b>{item.school}</b><div className="text-xs muted">{fmtDate(item.date || String(item.createdAt || todayValue()).slice(0, 10))}</div></div><button onClick={() => remove(item.id)}><Fa icon={faTrashCan} /></button></div><div className="mt-3 grid gap-2 sm:grid-cols-2"><button className={statusClass(item.onlineForm)} onClick={() => toggle(item.id, "onlineForm")}><span>{tx.onlineForm}</span><b>{item.onlineForm}</b></button><button className={statusClass(item.careerSite)} onClick={() => toggle(item.id, "careerSite")}><span>{tx.careerSite}</span><b>{item.careerSite}</b></button></div></div>)}</List>;
+  return <ReorderableSections items={[{ id: "addLevelUp", node: addPanel }, { id: "levelUpsList", node: list }]} order={sectionOrder} setOrder={setSectionOrder} />;
 }
 
 function TaskEditPanel({ tx, optionSets, task, update, close }) {
-  const taskChoices = [...new Set([...labelsFor(optionSets, "taskTypes"), task.type, tx.otherTask].filter(Boolean))];
   const [draft, setDraft] = useState(() => ({ ...task }));
   const save = () => {
-    if (![draft.title, draft.school, draft.type, draft.dueDate, draft.dueTime].every((value) => String(value || "").trim())) return alert(tx.required);
+    if (![draft.title, draft.school, draft.dueDate, draft.dueTime].every((value) => String(value || "").trim())) return alert(tx.required);
     update(task.id, {
       title: draft.title.trim(),
       school: draft.school.trim(),
-      type: draft.type,
+      type: draft.title.trim(),
+      taskText: draft.title.trim(),
       notes: draft.notes || "",
       dueDate: draft.dueDate,
       dueTime: draft.dueTime,
@@ -2348,7 +3509,7 @@ function TaskEditPanel({ tx, optionSets, task, update, close }) {
     });
     close();
   };
-  return <div className="mt-3 rounded-3xl bg-white p-3"><div className="grid gap-2"><input className="input" placeholder={tx.task} value={draft.title || ""} onChange={(e) => setDraft({ ...draft, title: e.target.value })} /><input className="input" placeholder={tx.school} value={draft.school || ""} onChange={(e) => setDraft({ ...draft, school: e.target.value })} /><select className="input" value={draft.type || ""} onChange={(e) => setDraft({ ...draft, type: e.target.value })}>{taskChoices.map((x) => <option key={x}>{x}</option>)}</select><textarea className="input min-h-[80px]" placeholder={tx.notes} value={draft.notes || ""} onChange={(e) => setDraft({ ...draft, notes: e.target.value })} /><div className="grid grid-cols-2 gap-2"><input className="input" type="date" value={draft.dueDate || todayValue()} onChange={(e) => setDraft({ ...draft, dueDate: e.target.value })} /><input className="input" type="time" value={draft.dueTime || ""} onChange={(e) => setDraft({ ...draft, dueTime: e.target.value })} /></div><div className="grid grid-cols-2 gap-2">{PRIORITIES.map((priority) => <button key={priority.value} className={"priority-choice priority-" + priority.value + (draft.priority === priority.value ? " selected" : "")} onClick={() => setDraft({ ...draft, priority: priority.value })}>{priorityLabel(priority.value, tx)}</button>)}</div><div className="grid grid-cols-2 gap-2"><button className="btn primary" onClick={save}><Fa icon={faFloppyDisk} /> <span>{tx.updateTask}</span></button><button className="btn soft" onClick={close}><Fa icon={faXmark} /> <span>{tx.dismiss}</span></button></div></div></div>;
+  return <div className="mt-3 rounded-3xl bg-white p-3"><div className="grid gap-2"><input className="input" placeholder={tx.school} value={draft.school || ""} onChange={(e) => setDraft({ ...draft, school: e.target.value })} /><input className="input" placeholder={tx.taskType} value={draft.title || ""} onChange={(e) => setDraft({ ...draft, title: e.target.value, type: e.target.value, taskText: e.target.value })} /><textarea className="input min-h-[80px]" placeholder={tx.notes} value={draft.notes || ""} onChange={(e) => setDraft({ ...draft, notes: e.target.value })} /><div className="grid grid-cols-2 gap-2"><input className="input" type="date" value={draft.dueDate || todayValue()} onChange={(e) => setDraft({ ...draft, dueDate: e.target.value })} /><input className="input" type="time" value={draft.dueTime || ""} onChange={(e) => setDraft({ ...draft, dueTime: e.target.value })} /></div><div className="grid grid-cols-2 gap-2">{PRIORITIES.map((priority) => <button key={priority.value} className={"priority-choice priority-" + priority.value + (draft.priority === priority.value ? " selected" : "")} onClick={() => setDraft({ ...draft, priority: priority.value })}>{priorityLabel(priority.value, tx)}</button>)}</div><div className="grid grid-cols-2 gap-2"><button className="btn primary" onClick={save}><Fa icon={faFloppyDisk} /> <span>{tx.updateTask}</span></button><button className="btn soft" onClick={close}><Fa icon={faXmark} /> <span>{tx.dismiss}</span></button></div></div></div>;
 }
 
 function TaskCard({ tx, optionSets, task, noteMap, toggle, update, remove, openNote }) {
@@ -2357,19 +3518,24 @@ function TaskCard({ tx, optionSets, task, noteMap, toggle, update, remove, openN
   return <div className={taskCardClass(task)}><div className="flex gap-2"><button className={"h-6 w-6 rounded-full border text-xs " + (task.completed ? "bg-green-600 text-white" : "")} onClick={() => toggle(task.id)}><Fa icon={faCheck} /></button><div className="min-w-0 flex-1"><b className={task.completed ? "line-through muted" : ""}>{task.title}</b><div className="text-xs muted">{task.school} - {task.type}</div><Pill warn={taskPriority(task) === "urgent"}>{priorityLabel(taskPriority(task), tx)} - {task.dueDate} - {task.dueTime}</Pill>{task.notes ? <p className="mt-2 whitespace-pre-wrap text-xs muted">{task.notes}</p> : null}{linkedNote && <div><button className="btn soft mt-2" onClick={() => openNote(task.linkedNoteId)}><Fa icon={faNoteSticky} /> <span>{tx.goToNote}</span></button></div>}</div><div className="flex flex-col gap-1"><button title={tx.editTask} onClick={() => setEditing(!editing)}><Fa icon={faPenToSquare} /></button><button onClick={() => remove(task.id)}><Fa icon={faTrashCan} /></button></div></div>{editing && <TaskEditPanel tx={tx} optionSets={optionSets} task={task} update={update} close={() => setEditing(false)} />}</div>;
 }
 
-function Tasks({ tx, optionSets, live, closed, form, setForm, add, update, toggle, remove, notes, openNote, totals, salesSummary, meetings, calls, levelUps }) {
+function Tasks({ tx, optionSets, live, closed, form, setForm, add, update, toggle, remove, notes, openNote, totals, salesSummary, meetings, calls, levelUps, sectionOrder, setSectionOrder }) {
   const noteMap = Object.fromEntries(notes.map((n) => [n.id, n]));
-  const [formFirst, setFormFirst] = useState(false);
   const copyTasks = () => {
     const additions = prompt(tx.additionsOther, "") || "";
     const message = dailySummaryMessage({ tx, totals, salesSummary, meetings, calls, levelUps, additions });
     copyToClipboard(message).then(() => alert(tx.copiedTasks));
   };
-  const taskChoices = [...labelsFor(optionSets, "taskTypes"), tx.otherTask];
   const renderCard = (task) => <TaskCard key={task.id} tx={tx} optionSets={optionSets} task={task} noteMap={noteMap} toggle={toggle} update={update} remove={remove} openNote={openNote} />;
-  const lists = <section className="space-y-3"><div className="grid grid-cols-2 gap-2"><button className="btn primary" onClick={copyTasks}><Fa icon={faCopy} /> <span>{tx.copyDailySummary}</span></button><button className="btn soft" onClick={() => setFormFirst(!formFirst)}>{formFirst ? "Tasks first" : "Form first"}</button></div><List title={tx.liveTasks} count={live.length} empty={tx.noLiveTasks}>{live.map(renderCard)}</List><List title={tx.closedTasks} count={closed.length} empty={tx.noClosedTasks}>{closed.map(renderCard)}</List></section>;
-  const formPanel = <section className="panel shadow-card p-3"><h2 className="brand brand-text">{tx.addTask}</h2><div className="mt-2 grid gap-2"><input className="input" placeholder={tx.school} value={form.school} onChange={(e) => setForm({ ...form, school: e.target.value })} /><select className="input" value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })}>{taskChoices.map((x) => <option key={x}>{x}</option>)}</select>{form.type === tx.otherTask && <input className="input" placeholder={tx.otherTaskName} value={form.otherTitle || ""} onChange={(e) => setForm({ ...form, otherTitle: e.target.value })} />}<textarea className="input min-h-[80px]" placeholder={tx.notes} value={form.notes || ""} onChange={(e) => setForm({ ...form, notes: e.target.value })} /><div className="grid grid-cols-2 gap-2"><input className="input" type="date" value={form.dueDate} onChange={(e) => setForm({ ...form, dueDate: e.target.value })} /><input className="input" type="time" value={form.dueTime} onChange={(e) => setForm({ ...form, dueTime: e.target.value })} /></div><div className="grid grid-cols-2 gap-2">{PRIORITIES.map((priority) => <button key={priority.value} className={"priority-choice priority-" + priority.value + (form.priority === priority.value ? " selected" : "")} onClick={() => setForm({ ...form, priority: priority.value })}>{priorityLabel(priority.value, tx)}</button>)}</div><div className="grid grid-cols-2 gap-2"><button className="btn primary" onClick={() => add()}><Fa icon={faCirclePlus} /> <span>{tx.addTask}</span></button><button className="btn soft" onClick={() => add({ completed: true })}><Fa icon={faCheck} /> <span>{tx.completedTask}</span></button></div></div></section>;
-  return <main className="grid gap-3 lg:grid-cols-[1fr_320px]">{formFirst ? <>{formPanel}{lists}</> : <>{lists}{formPanel}</>}</main>;
+  const taskActions = <section className="panel shadow-card p-3"><button className="btn primary w-full" onClick={copyTasks}><Fa icon={faCopy} /> <span>{tx.copyDailySummary}</span></button></section>;
+  const liveList = <List title={tx.liveTasks} count={live.length} empty={tx.noLiveTasks}>{live.map(renderCard)}</List>;
+  const closedList = <List title={tx.closedTasks} count={closed.length} empty={tx.noClosedTasks}>{closed.map(renderCard)}</List>;
+  const formPanel = <section className="panel shadow-card p-3"><h2 className="brand brand-text">{tx.addTask}</h2><div className="mt-2 grid gap-2"><input className="input" placeholder={tx.school} value={form.school} onChange={(e) => setForm({ ...form, school: e.target.value })} /><input className="input" placeholder={tx.taskType} value={form.taskText || ""} onChange={(e) => setForm({ ...form, taskText: e.target.value, type: e.target.value })} /><textarea className="input min-h-[80px]" placeholder={tx.notes} value={form.notes || ""} onChange={(e) => setForm({ ...form, notes: e.target.value })} /><div className="grid grid-cols-2 gap-2"><input className="input" type="date" value={form.dueDate} onChange={(e) => setForm({ ...form, dueDate: e.target.value })} /><input className="input" type="time" value={form.dueTime} onChange={(e) => setForm({ ...form, dueTime: e.target.value })} /></div><div className="grid grid-cols-2 gap-2">{PRIORITIES.map((priority) => <button key={priority.value} className={"priority-choice priority-" + priority.value + (form.priority === priority.value ? " selected" : "")} onClick={() => setForm({ ...form, priority: priority.value })}>{priorityLabel(priority.value, tx)}</button>)}</div><div className="grid grid-cols-2 gap-2"><button className="btn primary" onClick={() => add()}><Fa icon={faCirclePlus} /> <span>{tx.addTask}</span></button><button className="btn soft" onClick={() => add({ completed: true })}><Fa icon={faCheck} /> <span>{tx.completedTask}</span></button></div></div></section>;
+  return <ReorderableSections items={[
+    { id: "taskActions", node: taskActions },
+    { id: "liveTasks", node: liveList },
+    { id: "closedTasks", node: closedList },
+    { id: "addTask", node: formPanel },
+  ]} order={sectionOrder} setOrder={setSectionOrder} />;
 }
 
 function NotesToSelf({ tx, notesToSelf, text, setText, add, remove }) {
@@ -2377,19 +3543,104 @@ function NotesToSelf({ tx, notesToSelf, text, setText, add, remove }) {
   return <section className="panel shadow-card p-3"><button className="flex w-full items-center justify-between gap-2 text-left" onClick={() => setOpen(!open)}><h2 className="brand brand-text">{tx.notesToSelf}</h2><Fa icon={open ? faChevronUp : faChevronDown} /></button>{open && <div className="mt-2 grid gap-2"><textarea className="input min-h-[100px]" placeholder={tx.notes} value={text} onChange={(e) => setText(e.target.value)} /><button className="btn primary" onClick={add}><Fa icon={faNoteSticky} /> <span>{tx.addNoteToSelf}</span></button><div className="grid gap-2">{notesToSelf.length ? notesToSelf.map((note) => <div className="rounded-2xl brand-soft p-2" key={note.id}><div className="flex justify-between gap-2"><div><b className="text-xs muted">{fmtStamp(note.createdAt)}</b><p className="mt-1 whitespace-pre-wrap text-sm">{note.text}</p></div><button onClick={() => remove(note.id)}><Fa icon={faTrashCan} /></button></div></div>) : <div className="rounded-2xl brand-soft p-3 text-xs muted">{tx.noNotesToSelf}</div>}</div></div>}</section>;
 }
 
-function Notes({ tx, optionSets, notes, notesToSelf, selfNoteText, setSelfNoteText, addSelfNote, removeSelfNote, tasks, form, setForm, addNote, remove, toggleTask }) {
+function CalendarPlannerPreview({ tx, draftMeeting, setDraftMeeting }) {
+  const slots = ["09:00", "10:30", "13:00", "14:30", "15:30"];
+  const moveDay = (amount) => {
+    const date = parseDay(draftMeeting.date || todayValue());
+    date.setDate(date.getDate() + amount);
+    setDraftMeeting({ ...draftMeeting, date: dateValue(date) });
+  };
+  return (
+    <div className="mt-2 rounded-2xl bg-white p-3">
+      <div className="flex items-start justify-between gap-2">
+        <div><b className="text-xs uppercase brand-text">{tx.personalCalendarPlanner}</b><p className="text-xs muted">{tx.readOnlyCalendar}</p></div>
+        <span className="status-pill status-neutral">{tx.saveLocalMeetingOnly}</span>
+      </div>
+      <div className="mt-2 grid grid-cols-[auto_1fr_auto] gap-2"><button className="btn soft" onClick={() => moveDay(-1)}><Fa icon={faChevronLeft} /></button><input className="input" type="date" value={draftMeeting.date || todayValue()} onChange={(e) => setDraftMeeting({ ...draftMeeting, date: e.target.value })} /><button className="btn soft" onClick={() => moveDay(1)}><Fa icon={faChevronRight} /></button></div>
+      <button className="btn soft mt-2 w-full" onClick={() => setDraftMeeting({ ...draftMeeting, date: todayValue() })}>{tx.day}</button>
+      <div className="mt-2 grid grid-cols-2 gap-2">{slots.map((slot) => <button key={slot} className="btn soft" onClick={() => setDraftMeeting({ ...draftMeeting, time: slot, source: "calendar_slot", calendarReadStatus: "available_when_selected" })}>{tx.freeSlot} {slot}</button>)}</div>
+    </div>
+  );
+}
+
+function Notes({ tx, optionSets, integrations, featureFlags, openIntegrationSettings, notes, notesToSelf, selfNoteText, setSelfNoteText, addSelfNote, removeSelfNote, tasks, form, setForm, addNote, remove, toggleTask, sectionOrder, setSectionOrder }) {
   const taskById = Object.fromEntries(tasks.map((task) => [task.id, task]));
   const [showTask, setShowTask] = useState(false);
   const [showFollowUp, setShowFollowUp] = useState(false);
+  const [plannerMode, setPlannerMode] = useState("manual");
   const [draftTasks, setDraftTasks] = useState([]);
   const [draftMeetings, setDraftMeetings] = useState([]);
   const [draftLevelUps, setDraftLevelUps] = useState([]);
-  const [draftTask, setDraftTask] = useState({ type: firstOptionLabel(optionSets, "taskTypes"), otherTitle: "", notes: "", dueDate: todayValue(), dueTime: "", priority: "normal", urgent: false });
-  const [draftMeeting, setDraftMeeting] = useState({ type: firstOptionLabel(optionSets, "meetingTypes"), date: todayValue(), time: "", teamsInviteSent: false });
-  const addDraftTask = () => { const title = taskTitleFromForm(draftTask, tx); if (!title || !draftTask.type || !draftTask.dueDate || !draftTask.dueTime) return alert(tx.requiredTask); setDraftTasks((current) => [{ ...draftTask, id: uid(), title, notes: draftTask.notes || "", priority: draftTask.priority || "normal", urgent: draftTask.priority === "urgent" }, ...current]); setDraftTask({ type: firstOptionLabel(optionSets, "taskTypes"), otherTitle: "", notes: "", dueDate: todayValue(), dueTime: "", priority: "normal", urgent: false }); };
-  const addDraftMeeting = () => { if (!form.school.trim() || !draftMeeting.type || !draftMeeting.date || !draftMeeting.time) return alert(tx.required); setDraftMeetings((current) => [{ ...draftMeeting, id: uid() }, ...current]); setDraftMeeting({ type: firstOptionLabel(optionSets, "meetingTypes"), date: todayValue(), time: "", teamsInviteSent: false }); };
-  const addDraftFollowUpEmail = () => { if (!form.school.trim()) return alert(tx.required); const linkedMeeting = draftMeetings[0]; setDraftTasks((current) => [{ id: uid(), title: followUpEmailTitle(form.school.trim()), type: tx.followUpEmail, notes: "", dueDate: todayValue(), dueTime: "16:30", priority: "normal", urgent: false, followUpEmail: true, autoFollowUpMeetingId: linkedMeeting ? linkedMeeting.id : "" }, ...current]); };
-  const addDraftLevelUp = () => { if (!form.school.trim()) return alert(tx.required); setDraftLevelUps((current) => [{ id: uid(), onlineForm: "Pending", careerSite: "Pending" }, ...current]); };
-  const save = (kind) => { if (addNote(kind, draftTasks, draftMeetings, draftLevelUps)) { setDraftTasks([]); setDraftMeetings([]); setDraftLevelUps([]); setShowTask(false); setShowFollowUp(false); setDraftTask({ type: firstOptionLabel(optionSets, "taskTypes"), otherTitle: "", notes: "", dueDate: todayValue(), dueTime: "", priority: "normal", urgent: false }); setDraftMeeting({ type: firstOptionLabel(optionSets, "meetingTypes"), date: todayValue(), time: "", teamsInviteSent: false }); } };
-  return <main className="grid gap-3 lg:grid-cols-[1fr_380px]"><List title={tx.notesList} count={notes.length}>{notes.map((note) => <div className="panel shadow-card p-3" key={note.id}><div className="flex justify-between"><div><b>{note.school}</b><div className="text-[10px] font-black uppercase muted">{note.kind === "call" ? tx.callNote : tx.meetingNote} - {fmtStamp(note.createdAt)}</div></div><button onClick={() => remove(note.id)}><Fa icon={faTrashCan} /></button></div><p className="mt-3 whitespace-pre-wrap text-sm">{note.notes}</p>{note.tasks && note.tasks.length > 0 && <div className="mt-3 rounded-3xl brand-soft p-3"><b className="text-xs uppercase brand-text">{tx.dynamicTasks}</b>{note.tasks.map((task) => { const liveTask = taskById[task.id]; const complete = Boolean(liveTask && liveTask.completed); return <div key={task.id} className="mt-2 rounded-2xl bg-white p-2"><div className="flex gap-2"><button onClick={() => liveTask && toggleTask(task.id)} className={"h-6 w-6 rounded-full border text-xs " + (complete ? "bg-green-600 text-white" : "")}><Fa icon={faCheck} /></button><div><b className={complete ? "line-through muted" : ""}>{task.title}</b><div className="text-xs muted">{task.type} - {task.dueDate} - {task.dueTime}</div></div></div></div>; })}</div>}{note.followUps && note.followUps.length > 0 && <div className="mt-3 rounded-3xl bg-orange-50 p-3"><b className="text-xs uppercase text-orange-700">{tx.meetings}</b>{note.followUps.map((meeting) => <div className="mt-2 rounded-2xl bg-white p-2" key={meeting.id}><b>{meeting.type}</b><div className="text-xs muted">{meeting.date} - {meeting.time} - {meeting.teamsInviteSent ? tx.teamsSent : tx.teamsNotSent}</div></div>)}</div>}{note.levelUps && note.levelUps.length > 0 && <div className="mt-3 rounded-3xl bg-green-50 p-3"><b className="text-xs uppercase text-green-700">{tx.levelUps}</b>{note.levelUps.map((item) => <div className="mt-2 rounded-2xl bg-white p-2" key={item.id}><b>{item.school}</b><div className="text-xs muted">{tx.onlineForm}: {item.onlineForm} - {tx.careerSite}: {item.careerSite}</div></div>)}</div>}</div>)}</List><section className="space-y-3"><NotesToSelf tx={tx} notesToSelf={notesToSelf} text={selfNoteText} setText={setSelfNoteText} add={addSelfNote} remove={removeSelfNote} /><section className="panel shadow-card p-3"><h2 className="brand brand-text">{tx.addNote}</h2><p className="text-xs muted">{tx.noteHelp}</p><div className="mt-2 grid gap-2"><input className="input" placeholder={tx.client} value={form.school} onChange={(e) => setForm({ ...form, school: e.target.value })} /><textarea className="input min-h-[180px]" placeholder={tx.notes} value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} /><button className="btn soft" onClick={() => setShowTask(!showTask)}>{showTask ? tx.hideTask : tx.createTask}</button>{showTask && <div className="rounded-3xl brand-soft p-3"><select className="input" value={draftTask.type} onChange={(e) => setDraftTask({ ...draftTask, type: e.target.value })}>{[...labelsFor(optionSets, "taskTypes"), tx.otherTask].map((x) => <option key={x}>{x}</option>)}</select>{draftTask.type === tx.otherTask && <input className="input mt-2" placeholder={tx.otherTaskName} value={draftTask.otherTitle || ""} onChange={(e) => setDraftTask({ ...draftTask, otherTitle: e.target.value })} />}<textarea className="input mt-2 min-h-[70px]" placeholder={tx.notes} value={draftTask.notes || ""} onChange={(e) => setDraftTask({ ...draftTask, notes: e.target.value })} /><div className="mt-2 grid grid-cols-2 gap-2"><input className="input" type="date" value={draftTask.dueDate} onChange={(e) => setDraftTask({ ...draftTask, dueDate: e.target.value })} /><input className="input" type="time" value={draftTask.dueTime} onChange={(e) => setDraftTask({ ...draftTask, dueTime: e.target.value })} /></div><div className="mt-2 grid grid-cols-2 gap-2">{PRIORITIES.map((priority) => <button key={priority.value} className={"priority-choice priority-" + priority.value + (draftTask.priority === priority.value ? " selected" : "")} onClick={() => setDraftTask({ ...draftTask, priority: priority.value })}>{priorityLabel(priority.value, tx)}</button>)}</div><button className="btn primary mt-2" onClick={addDraftTask}><Fa icon={faListCheck} /> <span>{tx.addTaskToNote}</span></button></div>}{draftTasks.length > 0 && <div className="rounded-3xl bg-blue-50 p-3"><b className="text-xs uppercase text-blue-700">{tx.tasksWaiting}</b>{draftTasks.map((task) => <div className="panel mt-2 p-2" key={task.id}><div className="flex justify-between"><div><b>{task.title}</b><div className="text-xs muted">{task.type} - {task.dueDate} - {task.dueTime}</div></div><button onClick={() => setDraftTasks(draftTasks.filter((x) => x.id !== task.id))}><Fa icon={faTrashCan} /></button></div></div>)}</div>}<button className="btn soft" onClick={() => setShowFollowUp(!showFollowUp)}>{showFollowUp ? tx.hideFollowUp : tx.createFollowUp}</button>{showFollowUp && <div className="rounded-3xl brand-soft p-3"><select className="input" value={draftMeeting.type} onChange={(e) => setDraftMeeting({ ...draftMeeting, type: e.target.value })}>{labelsFor(optionSets, "meetingTypes").map((x) => <option key={x}>{x}</option>)}</select><div className="mt-2 grid grid-cols-2 gap-2"><input className="input" type="date" value={draftMeeting.date} onChange={(e) => setDraftMeeting({ ...draftMeeting, date: e.target.value })} /><input className="input" type="time" value={draftMeeting.time} onChange={(e) => setDraftMeeting({ ...draftMeeting, time: e.target.value })} /></div><label className="mt-2 block rounded-2xl bg-white p-2 text-xs font-black"><input type="checkbox" checked={draftMeeting.teamsInviteSent} onChange={(e) => setDraftMeeting({ ...draftMeeting, teamsInviteSent: e.target.checked })} /> {tx.teamsInviteSent}</label><button className="btn primary mt-2" onClick={addDraftMeeting}><Fa icon={faCalendarDays} /> <span>{tx.addFollowUpToNote}</span></button></div>}<button className="btn soft" onClick={addDraftFollowUpEmail}><Fa icon={faEnvelope} /> <span>{tx.createFollowUpEmail}</span></button>{draftMeetings.length > 0 && <div className="rounded-3xl bg-orange-50 p-3"><b className="text-xs uppercase text-orange-700">{tx.followUpsWaiting}</b>{draftMeetings.map((meeting) => <div className="panel mt-2 p-2" key={meeting.id}><div className="flex justify-between"><div><b>{form.school || tx.client}</b><div className="text-xs muted">{meeting.type} - {meeting.date} - {meeting.time}</div></div><button onClick={() => setDraftMeetings(draftMeetings.filter((x) => x.id !== meeting.id))}><Fa icon={faTrashCan} /></button></div></div>)}</div>}<button className="btn soft" onClick={addDraftLevelUp}><Fa icon={faRocket} /> <span>{tx.addLevelUpToNote}</span></button>{draftLevelUps.length > 0 && <div className="rounded-3xl bg-green-50 p-3"><b className="text-xs uppercase text-green-700">{tx.levelUpsWaiting}</b>{draftLevelUps.map((item) => <div className="panel mt-2 p-2" key={item.id}><div className="flex justify-between"><div><b>{form.school || tx.client}</b><div className="text-xs muted">{tx.onlineForm}: {item.onlineForm} - {tx.careerSite}: {item.careerSite}</div></div><button onClick={() => setDraftLevelUps(draftLevelUps.filter((x) => x.id !== item.id))}><Fa icon={faTrashCan} /></button></div></div>)}</div>}<div className="grid grid-cols-2 gap-2"><button className="btn primary" onClick={() => save("meeting")}><Fa icon={faCalendarDays} /> <span>{tx.saveMeeting}</span></button><button className="btn primary" onClick={() => save("call")}><Fa icon={faPhone} /> <span>{tx.saveCall}</span></button></div></div></section></section></main>;
+  const [draftTask, setDraftTask] = useState({ taskText: "", type: "", notes: "", dueDate: todayValue(), dueTime: "", priority: "normal", urgent: false });
+  const [draftMeeting, setDraftMeeting] = useState({ type: firstOptionLabel(optionSets, "meetingTypes"), date: todayValue(), time: "", durationMinutes: 30, teamsInviteSent: false, doNotAddToKpis: false, source: "manual" });
+  const canPlanWithCalendar = canUseCalendarPlanner(integrations, featureFlags);
+  const addDraftTask = () => {
+    const title = taskTitleFromForm(draftTask, tx);
+    if (!title || !draftTask.dueDate || !draftTask.dueTime) return alert(tx.requiredTask);
+    setDraftTasks((current) => [{ ...draftTask, id: uid(), title, taskText: title, type: title, notes: draftTask.notes || "", priority: draftTask.priority || "normal", urgent: draftTask.priority === "urgent" }, ...current]);
+    setDraftTask({ taskText: "", type: "", notes: "", dueDate: todayValue(), dueTime: "", priority: "normal", urgent: false });
+  };
+  const addDraftMeeting = () => {
+    if (!form.school.trim() || !draftMeeting.type || !draftMeeting.date || !draftMeeting.time) return alert(tx.required);
+    const normal = normalizeMeeting({ ...draftMeeting, id: uid(), source: plannerMode === "calendar" ? "calendar_slot" : "manual", calendarReadStatus: canPlanWithCalendar ? "available_when_selected" : "not_connected" }, 0);
+    setDraftMeetings((current) => [normal, ...current]);
+    setDraftMeeting({ type: firstOptionLabel(optionSets, "meetingTypes"), date: todayValue(), time: "", durationMinutes: 30, teamsInviteSent: false, doNotAddToKpis: false, source: "manual" });
+  };
+  const addDraftFollowUpEmail = () => {
+    if (!form.school.trim()) return alert(tx.required);
+    const linkedMeeting = draftMeetings[0];
+    setDraftTasks((current) => [{ id: uid(), title: followUpEmailTitle(form.school.trim()), taskText: followUpEmailTitle(form.school.trim()), type: tx.followUpEmail, notes: "", dueDate: todayValue(), dueTime: "16:30", priority: "normal", urgent: false, followUpEmail: true, autoFollowUpMeetingId: linkedMeeting ? linkedMeeting.id : "" }, ...current]);
+  };
+  const addDraftLevelUp = () => {
+    if (!form.school.trim()) return alert(tx.required);
+    setDraftLevelUps((current) => [{ id: uid(), onlineForm: "Pending", careerSite: "Pending" }, ...current]);
+  };
+  const save = (kind) => {
+    if (addNote(kind, draftTasks, draftMeetings, draftLevelUps)) {
+      setDraftTasks([]);
+      setDraftMeetings([]);
+      setDraftLevelUps([]);
+      setShowTask(false);
+      setShowFollowUp(false);
+      setPlannerMode("manual");
+      setDraftTask({ taskText: "", type: "", notes: "", dueDate: todayValue(), dueTime: "", priority: "normal", urgent: false });
+      setDraftMeeting({ type: firstOptionLabel(optionSets, "meetingTypes"), date: todayValue(), time: "", durationMinutes: 30, teamsInviteSent: false, doNotAddToKpis: false, source: "manual" });
+    }
+  };
+
+  return (
+    <ReorderableSections className="dashboard-sections" items={[
+      { id: "notesList", node: <List title={tx.notesList} count={notes.length}>
+        {notes.map((note) => (
+          <div className="panel shadow-card p-3" key={note.id}>
+            <div className="flex justify-between"><div><b>{note.school}</b><div className="text-[10px] font-black uppercase muted">{note.kind === "call" ? tx.callNote : tx.meetingNote} - {fmtStamp(note.createdAt)}</div></div><button onClick={() => remove(note.id)}><Fa icon={faTrashCan} /></button></div>
+            <p className="mt-3 whitespace-pre-wrap text-sm">{note.notes}</p>
+            {note.tasks && note.tasks.length > 0 && <div className="mt-3 rounded-3xl brand-soft p-3"><b className="text-xs uppercase brand-text">{tx.dynamicTasks}</b>{note.tasks.map((task) => { const liveTask = taskById[task.id]; const complete = Boolean(liveTask && liveTask.completed); return <div key={task.id} className="mt-2 rounded-2xl bg-white p-2"><div className="flex gap-2"><button onClick={() => liveTask && toggleTask(task.id)} className={"h-6 w-6 rounded-full border text-xs " + (complete ? "bg-green-600 text-white" : "")}><Fa icon={faCheck} /></button><div><b className={complete ? "line-through muted" : ""}>{task.title}</b><div className="text-xs muted">{task.type} - {task.dueDate} - {task.dueTime}</div></div></div></div>; })}</div>}
+            {note.followUps && note.followUps.length > 0 && <div className="mt-3 rounded-3xl bg-orange-50 p-3"><b className="text-xs uppercase text-orange-700">{tx.meetings}</b>{note.followUps.map((meeting) => <div className="mt-2 rounded-2xl bg-white p-2" key={meeting.id}><b>{meeting.type}</b><div className="text-xs muted">{meeting.date} - {meeting.time} - {meeting.teamsInviteSent ? tx.teamsSent : tx.teamsNotSent}</div></div>)}</div>}
+            {note.levelUps && note.levelUps.length > 0 && <div className="mt-3 rounded-3xl bg-green-50 p-3"><b className="text-xs uppercase text-green-700">{tx.levelUps}</b>{note.levelUps.map((item) => <div className="mt-2 rounded-2xl bg-white p-2" key={item.id}><b>{item.school}</b><div className="text-xs muted">{tx.onlineForm}: {item.onlineForm} - {tx.careerSite}: {item.careerSite}</div></div>)}</div>}
+          </div>
+        ))}
+      </List> },
+      { id: "notesToSelf", node: <NotesToSelf tx={tx} notesToSelf={notesToSelf} text={selfNoteText} setText={setSelfNoteText} add={addSelfNote} remove={removeSelfNote} /> },
+      { id: "addNote", node:
+        <section className="panel shadow-card p-3">
+          <h2 className="brand brand-text">{tx.addNote}</h2>
+          <p className="text-xs muted">{tx.noteHelp}</p>
+          <div className="mt-2 grid gap-2">
+            <input className="input" placeholder={tx.client} value={form.school} onChange={(e) => setForm({ ...form, school: e.target.value })} />
+            <textarea className="input min-h-[180px]" placeholder={tx.notes} value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} />
+            <button className="btn soft" onClick={() => setShowTask(!showTask)}>{showTask ? tx.hideTask : tx.createTask}</button>
+            {showTask && <div className="rounded-3xl brand-soft p-3"><input className="input" placeholder={tx.taskType} value={draftTask.taskText} onChange={(e) => setDraftTask({ ...draftTask, taskText: e.target.value, type: e.target.value })} /><textarea className="input mt-2 min-h-[70px]" placeholder={tx.notes} value={draftTask.notes || ""} onChange={(e) => setDraftTask({ ...draftTask, notes: e.target.value })} /><div className="mt-2 grid grid-cols-2 gap-2"><input className="input" type="date" value={draftTask.dueDate} onChange={(e) => setDraftTask({ ...draftTask, dueDate: e.target.value })} /><input className="input" type="time" value={draftTask.dueTime} onChange={(e) => setDraftTask({ ...draftTask, dueTime: e.target.value })} /></div><div className="mt-2 grid grid-cols-2 gap-2">{PRIORITIES.map((priority) => <button key={priority.value} className={"priority-choice priority-" + priority.value + (draftTask.priority === priority.value ? " selected" : "")} onClick={() => setDraftTask({ ...draftTask, priority: priority.value })}>{priorityLabel(priority.value, tx)}</button>)}</div><button className="btn primary mt-2" onClick={addDraftTask}><Fa icon={faListCheck} /> <span>{tx.addTaskToNote}</span></button></div>}
+            {draftTasks.length > 0 && <div className="rounded-3xl bg-blue-50 p-3"><b className="text-xs uppercase text-blue-700">{tx.tasksWaiting}</b>{draftTasks.map((task) => <div className="panel mt-2 p-2" key={task.id}><div className="flex justify-between"><div><b>{task.title}</b><div className="text-xs muted">{task.dueDate} - {task.dueTime}</div></div><button onClick={() => setDraftTasks(draftTasks.filter((x) => x.id !== task.id))}><Fa icon={faTrashCan} /></button></div></div>)}</div>}
+            <button className="btn soft" onClick={() => setShowFollowUp(!showFollowUp)}>{showFollowUp ? tx.hideFollowUp : tx.createFollowUp}</button>
+            {showFollowUp && <div className="rounded-3xl brand-soft p-3"><div className="grid grid-cols-2 gap-2"><button className={"btn " + (plannerMode === "manual" ? "primary" : "soft")} onClick={() => setPlannerMode("manual")}>{tx.planManually}</button><button className={"btn soft " + (!canPlanWithCalendar ? "locked-feature" : "")} disabled={!canPlanWithCalendar} onClick={() => setPlannerMode("calendar")}><Fa icon={canPlanWithCalendar ? faCalendarDays : faLock} /> <span>{tx.planUsingCalendar}</span></button></div>{!canPlanWithCalendar && <div className="mt-2 rounded-2xl bg-white p-2 text-xs muted">{tx.requiresMicrosoftCalendar} <button className="font-black brand-text" onClick={openIntegrationSettings}>{tx.viewIntegrationSettings}</button></div>}{plannerMode === "calendar" && <CalendarPlannerPreview tx={tx} draftMeeting={draftMeeting} setDraftMeeting={setDraftMeeting} /> }<select className="input mt-2" value={draftMeeting.type} onChange={(e) => setDraftMeeting({ ...draftMeeting, type: e.target.value })}>{labelsFor(optionSets, "meetingTypes").map((x) => <option key={x}>{x}</option>)}</select><div className="mt-2 grid grid-cols-2 gap-2"><input className="input" type="date" value={draftMeeting.date} onChange={(e) => setDraftMeeting({ ...draftMeeting, date: e.target.value })} /><input className="input" type="time" value={draftMeeting.time} onChange={(e) => setDraftMeeting({ ...draftMeeting, time: e.target.value })} /></div><select className="input mt-2" value={draftMeeting.durationMinutes} onChange={(e) => setDraftMeeting({ ...draftMeeting, durationMinutes: Number(e.target.value) })}>{[10, 15, 30, 45, 60].map((duration) => <option key={duration} value={duration}>{duration} {tx.meetingLength}</option>)}</select><label className="mt-2 block rounded-2xl bg-white p-2 text-xs font-black"><input type="checkbox" checked={draftMeeting.teamsInviteSent} onChange={(e) => setDraftMeeting({ ...draftMeeting, teamsInviteSent: e.target.checked })} /> {tx.teamsInviteSent}</label><label className="mt-2 block rounded-2xl bg-white p-2 text-xs font-black"><input type="checkbox" checked={draftMeeting.doNotAddToKpis} onChange={(e) => setDraftMeeting({ ...draftMeeting, doNotAddToKpis: e.target.checked })} /> {tx.doNotAddToKpis}</label><button className="btn primary mt-2" onClick={addDraftMeeting}><Fa icon={faCalendarDays} /> <span>{tx.addFollowUpToNote}</span></button></div>}
+            <button className="btn soft" onClick={addDraftFollowUpEmail}><Fa icon={faEnvelope} /> <span>{tx.createFollowUpEmail}</span></button>
+            {draftMeetings.length > 0 && <div className="rounded-3xl bg-orange-50 p-3"><b className="text-xs uppercase text-orange-700">{tx.followUpsWaiting}</b>{draftMeetings.map((meeting) => <div className="panel mt-2 p-2" key={meeting.id}><div className="flex justify-between"><div><b>{form.school || tx.client}</b><div className="text-xs muted">{meeting.type} - {meeting.date} - {meeting.time}</div></div><button onClick={() => setDraftMeetings(draftMeetings.filter((x) => x.id !== meeting.id))}><Fa icon={faTrashCan} /></button></div></div>)}</div>}
+            <button className="btn soft" onClick={addDraftLevelUp}><Fa icon={faRocket} /> <span>{tx.addLevelUpToNote}</span></button>
+            {draftLevelUps.length > 0 && <div className="rounded-3xl bg-green-50 p-3"><b className="text-xs uppercase text-green-700">{tx.levelUpsWaiting}</b>{draftLevelUps.map((item) => <div className="panel mt-2 p-2" key={item.id}><div className="flex justify-between"><div><b>{form.school || tx.client}</b><div className="text-xs muted">{tx.onlineForm}: {item.onlineForm} - {tx.careerSite}: {item.careerSite}</div></div><button onClick={() => setDraftLevelUps(draftLevelUps.filter((x) => x.id !== item.id))}><Fa icon={faTrashCan} /></button></div></div>)}</div>}
+            <div className="grid grid-cols-2 gap-2"><button className="btn primary" onClick={() => save("meeting")}><Fa icon={faCalendarDays} /> <span>{tx.saveMeeting}</span></button><button className="btn primary" onClick={() => save("call")}><Fa icon={faPhone} /> <span>{tx.saveCall}</span></button></div>
+          </div>
+        </section> },
+    ]} order={sectionOrder} setOrder={setSectionOrder} />
+  );
 }
